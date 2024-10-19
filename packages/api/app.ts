@@ -1,4 +1,10 @@
 import { Application, Context, Middleware, Router } from "./deps.ts";
+import {
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from "./deps.ts";
 import { sleep } from "./deps.ts";
 import { MongoClient } from "./deps.ts";
 import { createGoogleOAuthConfig, createHelpers } from "./deps.ts";
@@ -243,11 +249,51 @@ router.post("/presentations", async (ctx: Context) => {
     const presentationPrefix = `Users/${googleId}/presentations/${uuid}/`;
     const pdfKey = `${presentationPrefix}pdf/original_${name}.pdf`;
 
-    
+    // Upload PDF to S3 with error handling
+    const putObjectCommand = new PutObjectCommand({
+      Bucket: Deno.env.get("S3_BUCKET_NAME")!,
+      Key: pdfKey,
+      Body: pdfContent,
+      ContentType: "application/pdf",
+    });
+
+    try {
+      const pdfUploadResult = await s3.send(putObjectCommand);
+      console.log("PDF uploaded to S3:", pdfUploadResult);
+    } catch (uploadError) {
+      console.error("Error uploading PDF to S3:", uploadError);
+      ctx.response.status = 500;
+      ctx.response.body = { error: "Failed to upload PDF to storage." };
+      return;
+    }
+
+    // Create a new presentation object
+    const newPresentation = {
+      _id: uuid,
+      name: name,
+      createdAt: new Date(),
+      pdfKey: pdfKey, // Store the S3 key for future reference
+      slidesStatus: "pending",
+      presentationStatus: "pending",
+    };
+
+    // Update the user's presentations in the database with error handling
+    const updateResult = await users.updateOne(
+      { googleId },
+      { $push: { presentations: newPresentation } }
+    );
+
+    if (!updateResult.modifiedCount) {
+      console.warn("No documents were updated.");
+    }
+
+    pollS3Status(uuid, googleId, presentationPrefix).catch((err) =>
+      console.error("Background polling failed:", err)
+    );
 
     // Respond with success
     ctx.response.status = 201;
-    ctx.response.body = "newPresentation";
+    ctx.response.body = newPresentation;
   } catch (error) {
     console.error("Error in /createPresentation route:", error);
     ctx.response.status = 500;
@@ -255,7 +301,98 @@ router.post("/presentations", async (ctx: Context) => {
   }
 });
 
+// Helper Function for Poll Status
+const pollS3Status = async (
+  presentationId: string,
+  userId: string,
+  presentationPrefix: string,
+  maxAttempts = 10,
+  interval = 5
+) => {
+  const bucketName = Deno.env.get("S3_BUCKET_NAME")!;
+  const statusCompletedKey = `${presentationPrefix}status_completed`;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(
+      `Polling attempt ${attempt} for presentation ${presentationId}`
+    );
+    console.log(
+      `bucketName: ${bucketName}, statusCompletedKey: ${statusCompletedKey}`
+    );
+    const isCompleted = await fileExists(bucketName, statusCompletedKey);
+    console.log("isCompleted", isCompleted);
+    if (isCompleted) {
+      console.log(`Presentation ${presentationId} processing completed.`);
+      // Optionally, retrieve the list of images
+      const images = await getImages(bucketName, userId, presentationId);
+      // Update the database
+      await users.updateOne(
+        { "presentations._id": presentationId },
+        {
+          $set: {
+            "presentations.$.slidesStatus": "completed",
+            "presentations.$.slides": images,
+          },
+        }
+      );
+      return;
+    }
+    // Wait for the next polling interval
+    await sleep(interval);
+  }
+  // If max attempts reached without completion
+  console.warn(
+    `Polling max attempts reached for presentation ${presentationId}. Marking as failed.`
+  );
+  await users.updateOne(
+    { "presentations._id": presentationId },
+    {
+      $set: {
+        "presentations.$.slidesStatus": "failed",
+      },
+    }
+  );
+};
 
+// Helper function to check if a file exists in S3
+const fileExists = async (bucket, key) => {
+  console.log("checking if file exists");
+  try {
+    await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    console.log("file exists");
+    return true;
+  } catch (error) {
+    if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
+      return false;
+    }
+    throw error; // Rethrow other unexpected errors
+  }
+};
+
+// Helper function to retrieve image keys from S3
+const getImages = async (
+  bucket: string,
+  userId: string,
+  presentationId: string
+): Promise<string[]> => {
+  const prefix = `Users/${userId}/presentations/${presentationId}/slides/`;
+  const params = {
+    Bucket: bucket,
+    Prefix: prefix,
+  };
+
+  const response = await s3.send(new ListObjectsV2Command(params));
+  const imageKeys: string[] = [];
+
+  if (response.Contents) {
+    for (const obj of response.Contents) {
+      if (obj.Key && obj.Key.endsWith(".png")) {
+        imageKeys.push(Deno.env.get("S3_BUCKET_WEBSITE_ENDPOINT")! + obj.Key);
+      }
+    }
+  }
+
+  return imageKeys;
+};
 
 router.get("/user", async (ctx: Context) => {
   try {
@@ -496,6 +633,60 @@ authRouter.post("/presentations/:presentationUUID/clip", async (ctx: Context) =>
     const isEnd = isEndString === "true"; // convert to boolean
 
     console.log(audioFile.type);
+
+    if (videoFile.type !== "video/mp4" || audioFile.type !== "video/webm") {
+      ctx.response.status = 400;
+      ctx.response.body = {
+        error: "Uploaded files must be of type video/mp4 and video/webm.",
+      };
+      return;
+    }
+
+    const videoArrayBuffer = await videoFile.arrayBuffer();
+    const videoContent = new Uint8Array(videoArrayBuffer);
+
+    const audioArrayBuffer = await audioFile.arrayBuffer();
+    const audioContent = new Uint8Array(audioArrayBuffer);
+
+    const clipPrefix = `Users/${userId}/presentations/${presentationUUID}/clips/${clipIndex}_${clipTimestamp}_${isEnd}/${slideIndex}/`;
+    const videoKey = `${clipPrefix}video.mp4`;
+    const audioKey = `${clipPrefix}audio.webm`;
+
+    // Upload video to S3 with error handling
+    const videoPutObjectCommand = new PutObjectCommand({
+      Bucket: Deno.env.get("S3_BUCKET_NAME")!,
+      Key: videoKey,
+      Body: videoContent,
+      ContentType: "video/mp4",
+    });
+
+    try {
+      const videoUploadResult = await s3.send(videoPutObjectCommand);
+      console.log("Video uploaded to S3:", videoUploadResult);
+    } catch (uploadError) {
+      console.error("Error uploading video to S3:", uploadError);
+      ctx.response.status = 500;
+      ctx.response.body = { error: "Failed to upload video to storage." };
+      return;
+    }
+
+    // Upload audio to S3 with error handling
+    const audioPutObjectCommand = new PutObjectCommand({
+      Bucket: Deno.env.get("S3_BUCKET_NAME")!,
+      Key: audioKey,
+      Body: audioContent,
+      ContentType: "audio/webm",
+    });
+
+    try {
+      const audioUploadResult = await s3.send(audioPutObjectCommand);
+      console.log("Audio uploaded to S3:", audioUploadResult);
+    } catch (uploadError) {
+      console.error("Error uploading audio to S3:", uploadError);
+      ctx.response.status = 500;
+      ctx.response.body = { error: "Failed to upload audio to storage." };
+      return;
+    }
 
     // Respond with success
     ctx.response.status = 201;
