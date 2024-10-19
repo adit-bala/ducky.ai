@@ -1,2 +1,4 @@
 config:
   aws:region: us-east-1
+  cloudamqp:apikey:
+    secure: AAABAPLpXHnMHjyYVZ+u5VMI6mMfG/u0Lv965HUWmHUu8Ub3ik4Rhs6LLr8r9eXFwPamo3Ey4ePHuUtHHKnre5ivCHQ=
