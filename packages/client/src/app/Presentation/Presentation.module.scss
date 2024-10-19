@@ -1,0 +1,60 @@
+.root {
+  height: 100dvh;
+  overflow: hidden;
+
+  .hidden {
+    display: none;
+  }
+
+  .body {
+    height: 0;
+    background-color: var(--gray-2);
+    z-index: 1;
+
+    .indicator {
+      height: 8px;
+      width: 8px;
+      margin: 8px;
+      border-radius: 50%;
+      background-color: var(--gray-a11);
+      position: relative;
+
+      &::after {
+        content: "";
+        position: absolute;
+        top: -8px;
+        left: -8px;
+        height: 24px;
+        width: 24px;
+        border-radius: 50%;
+        background-color: var(--gray-4);
+        z-index: -1;
+      }
+
+      &.active {
+        background-color: var(--red-a11);
+
+        &::after {
+          top: 0;
+          left: 0;
+          height: 8px;
+          width: 8px;
+          background-color: var(--red-a11);
+          animation: pulse 1s infinite ease-in-out;
+        }
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}

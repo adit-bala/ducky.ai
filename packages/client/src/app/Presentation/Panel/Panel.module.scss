@@ -1,0 +1,20 @@
+.root {
+  width: 256px;
+  overflow: auto;
+
+  .slide {
+    border: 1px solid var(--gray-6);
+    border-radius: var(--radius-4);
+    box-shadow: var(--shadow-1);
+    overflow: hidden;
+
+    &.active {
+      outline: 4px solid var(--accent-5);
+    }
+
+    &:hover,
+    &.active {
+      border-color: var(--accent-9);
+    }
+  }
+}
