@@ -1,8 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run --watch main.ts"
+    "start": "deno run --allow-net --allow-read --allow-env --watch --unstable --allow-sys --unstable-kv app.ts"
   },
-  "imports": {
-    "@std/assert": "jsr:@std/assert@1"
-  }
+  "importMap": "import_map.json"
 }

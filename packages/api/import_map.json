@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "mongo/": "https://deno.land/x/mongo@v0.31.2/",
+    "oak/": "https://deno.land/x/oak@v12.5.0/",
+    "dotenv/": "https://deno.land/std@0.192.0/dotenv/",
+    "oauth/": "https://deno.land/x/deno_kv_oauth@v0.10.0/",
+    "sleep/": "https://deno.land/x/sleep@v1.3.0/",
+    "s3": "npm:@aws-sdk/client-s3@3.369.0",
+    "cors": "https://deno.land/x/cors/mod.ts"
+  }
+}
