@@ -1,9 +1,0 @@
-{
-    "imports": {
-      "mongo/": "https://deno.land/x/mongo@v0.31.2/",
-      "oak/": "https://deno.land/x/oak@v12.5.0/",
-      "dotenv/": "https://deno.land/std@0.192.0/dotenv/",
-      "oauth/": "https://deno.land/x/deno_kv_oauth@v0.10.0/",
-    }
-  }
-  
