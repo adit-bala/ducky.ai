@@ -1,0 +1,14 @@
+# infrastructure
+.pulumi
+.venv
+
+# api specific ignores
+.env
+node_modules
+.deno_cache
+*.log
+dist
+.DS_Store
+
+# vscode
+.vscode
