@@ -19,7 +19,7 @@ rabbitmq_url = os.environ.get("RABBITMQ_URI")
 enable_faster_destroy = os.environ.get("CLOUDAMQP_ENABLE_FASTER_DESTROY") or False
 
 instance = Instance("rabbitmq",
-    name="cloudamqp-instance",
+    name="cloudamqp",
     plan="lemur",
     region="amazon-web-services::us-west-1",
     tags=["pulumi"]
