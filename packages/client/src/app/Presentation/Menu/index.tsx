@@ -1,11 +1,11 @@
-import { IPresentation, updatePresentation } from "@/lib/api";
+import { IPresentation } from "@/lib/api";
 import {
   RadiobuttonIcon,
   ArrowLeftIcon,
   SquareIcon,
   TrackNextIcon,
   LayersIcon,
-  Pencil1Icon,
+  TrackPreviousIcon,
 } from "@radix-ui/react-icons";
 import {
   Flex,
@@ -15,14 +15,10 @@ import {
   Tooltip,
   Text,
   AlertDialog,
-  Dialog,
-  TextField,
 } from "@radix-ui/themes";
 import { Link } from "react-router-dom";
 
 import styles from "./Menu.module.scss";
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 
 interface MenuProps {
   presentation: IPresentation;
@@ -43,37 +39,37 @@ export default function Menu({
   index,
   updateIndex,
 }: MenuProps) {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [name, setName] = useState(presentation.name);
-  const queryClient = useQueryClient();
+  // const [open, setOpen] = useState(false);
+  // const [loading, setLoading] = useState(false);
+  // const [name, setName] = useState(presentation.name);
+  // const queryClient = useQueryClient();
 
-  const handleOpenChange = (open: boolean) => {
-    if (loading && !open) return;
+  // const handleOpenChange = (open: boolean) => {
+  //   if (loading && !open) return;
 
-    setOpen(open);
-  };
+  //   setOpen(open);
+  // };
 
-  const save = async () => {
-    if (!name.trim()) return;
+  // const save = async () => {
+  //   if (!name.trim()) return;
 
-    setLoading(true);
+  //   setLoading(true);
 
-    try {
-      await updatePresentation(presentation._id, name);
+  //   try {
+  //     await updatePresentation(presentation._id, name);
 
-      queryClient.setQueryData(["presentations", presentation._id], {
-        ...presentation,
-        name,
-      });
-    } catch (error) {
-      console.error(error);
-    }
+  //     queryClient.setQueryData(["presentations", presentation._id], {
+  //       ...presentation,
+  //       name,
+  //     });
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
 
-    setLoading(false);
+  //   setLoading(false);
 
-    setOpen(false);
-  };
+  //   setOpen(false);
+  // };
 
   return (
     <Flex
@@ -98,7 +94,7 @@ export default function Menu({
         )}
       </Tooltip>
       <Separator orientation="vertical" size="1" />
-      <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+      {/* <Dialog.Root open={open} onOpenChange={handleOpenChange}>
         <Tooltip content="Edit presentation">
           <Dialog.Trigger>
             <IconButton variant="surface" color="gray" disabled={recording}>
@@ -138,7 +134,7 @@ export default function Menu({
             </Button>
           </Flex>
         </Dialog.Content>
-      </Dialog.Root>
+      </Dialog.Root> */}
       <Flex direction="column" flexGrow="1">
         <Text size="1" weight="medium">
           {presentation.name}
@@ -165,6 +161,27 @@ export default function Menu({
             <TrackNextIcon />
           </Button>
         )
+      ) : presentation.presentationStatus !== "pending" ? (
+        <>
+          <Button
+            variant="outline"
+            color="gray"
+            disabled={index === 0}
+            onClick={() => updateIndex(index + 1)}
+          >
+            <TrackPreviousIcon />
+            Previous slide
+          </Button>
+          <Button
+            variant="outline"
+            color="gray"
+            disabled={index === presentation.slides!.length - 1}
+            onClick={() => updateIndex(index + 1)}
+          >
+            Next slide
+            <TrackNextIcon />
+          </Button>
+        </>
       ) : (
         <AlertDialog.Root>
           <AlertDialog.Trigger>

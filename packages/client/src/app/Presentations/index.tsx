@@ -12,7 +12,7 @@ import {
   TextArea,
   TextField,
 } from "@radix-ui/themes";
-import { ChangeEvent, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const accept = "application/pdf";
@@ -92,6 +92,12 @@ export default function Presentations() {
     }
   };
 
+  useEffect(() => {
+    if (data || isLoading) return;
+
+    navigate("/");
+  }, [data, isLoading, navigate]);
+
   return (
     <Flex direction="column" flexGrow="1">
       <Dialog.Root open={open} onOpenChange={handleOpenChange}>
@@ -100,53 +106,55 @@ export default function Presentations() {
           <Dialog.Description size="2" mb="4">
             Create a new presentation.
           </Dialog.Description>
-          <label>
-            <Text as="div" size="2" mb="1" color="gray">
-              Name
-            </Text>
-            <TextField.Root
-              disabled={loading}
-              placeholder="Enter a name"
-              onChange={(event) => setName(event.target.value)}
-              value={name}
-            />
-          </label>
-          <label>
-            <Text as="div" size="2" mb="1" color="gray">
-              Description
-            </Text>
-            <TextArea
-              disabled={loading}
-              placeholder="Describe the presentation"
-              onChange={(event) => setDescription(event.target.value)}
-              value={description}
-              rows={3}
-            />
-          </label>
-          <label>
-            <Text as="div" size="2" mb="1" color="gray">
-              Audience
-            </Text>
-            <TextArea
-              disabled={loading}
-              placeholder="Describe your target audience"
-              onChange={(event) => setAudience(event.target.value)}
-              value={audience}
-              rows={3}
-            />
-          </label>
-          <label>
-            <Text as="div" size="2" mb="1" color="gray">
-              Tone
-            </Text>
-            <TextArea
-              disabled={loading}
-              placeholder="Describe your target tone"
-              onChange={(event) => setTone(event.target.value)}
-              value={tone}
-              rows={3}
-            />
-          </label>
+          <Flex direction="column" gap="4">
+            <label>
+              <Text as="div" size="2" mb="1" color="gray">
+                Name
+              </Text>
+              <TextField.Root
+                disabled={loading}
+                placeholder="Enter a name"
+                onChange={(event) => setName(event.target.value)}
+                value={name}
+              />
+            </label>
+            <label>
+              <Text as="div" size="2" mb="1" color="gray">
+                Description
+              </Text>
+              <TextArea
+                disabled={loading}
+                placeholder="Describe the presentation"
+                onChange={(event) => setDescription(event.target.value)}
+                value={description}
+                rows={3}
+              />
+            </label>
+            <label>
+              <Text as="div" size="2" mb="1" color="gray">
+                Audience
+              </Text>
+              <TextArea
+                disabled={loading}
+                placeholder="Describe your target audience"
+                onChange={(event) => setAudience(event.target.value)}
+                value={audience}
+                rows={3}
+              />
+            </label>
+            <label>
+              <Text as="div" size="2" mb="1" color="gray">
+                Tone
+              </Text>
+              <TextArea
+                disabled={loading}
+                placeholder="Describe your target tone"
+                onChange={(event) => setTone(event.target.value)}
+                value={tone}
+                rows={3}
+              />
+            </label>
+          </Flex>
           <Flex gap="3" mt="4" justify="end">
             <Dialog.Close>
               <Button variant="outline" color="gray" disabled={loading}>
@@ -165,30 +173,12 @@ export default function Presentations() {
         </Dialog.Content>
       </Dialog.Root>
       <NavigationBar />
-      {isLoading ? (
-        <Flex justify="center" align="center" flexGrow="1">
+      {isLoading || !data ? (
+        <Flex justify="center" align="center" flexGrow="1" gap="3">
           <Spinner size="3" />
-        </Flex>
-      ) : !data || data.length === 0 ? (
-        <Flex justify="center" align="center" flexGrow="1">
-          <Flex justify="between" align="center">
-            <input
-              type="file"
-              accept={accept}
-              hidden
-              ref={inputRef}
-              onChange={handleChange}
-            />
-            <Button
-              onClick={() => inputRef.current?.click()}
-              loading={loading}
-              variant="classic"
-              className={styles.button}
-            >
-              <PlusIcon />
-              Add a new presentation
-            </Button>
-          </Flex>
+          <Text size="2" color="gray">
+            Loading...
+          </Text>
         </Flex>
       ) : (
         <Container>

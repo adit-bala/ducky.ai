@@ -453,69 +453,69 @@ router.get("/presentations", async (ctx: Context) => {
   }
 });
 
-router.patch("/presentations/:uuid", async (ctx: Context) => {
-  try {
-    const { uuid } = ctx.params;
-    if (!uuid) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Presentation UUID is required." };
-      return;
-    }
+// router.patch("/presentations/:uuid", async (ctx: Context) => {
+//   try {
+//     const { uuid } = ctx.params;
+//     if (!uuid) {
+//       ctx.response.status = 400;
+//       ctx.response.body = { error: "Presentation UUID is required." };
+//       return;
+//     }
 
-    // Find the user
-    const googleId = ctx.state.user.googleId;
-    if (!googleId) {
-      ctx.response.status = 404;
-      ctx.response.body = { error: "User not found." };
-      return;
-    }
+//     // Find the user
+//     const googleId = ctx.state.user.googleId;
+//     if (!googleId) {
+//       ctx.response.status = 404;
+//       ctx.response.body = { error: "User not found." };
+//       return;
+//     }
 
-    const requestEvent = await createRequestEvent(ctx);
+//     const requestEvent = await createRequestEvent(ctx);
 
-    // Check if the request has a body
-    if (!requestEvent.request.body) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Missing request body." };
-      return;
-    }
+//     // Check if the request has a body
+//     if (!requestEvent.request.body) {
+//       ctx.response.status = 400;
+//       ctx.response.body = { error: "Missing request body." };
+//       return;
+//     }
 
-    const contentType = requestEvent.request.headers.get("Content-Type") || "";
-    if (!contentType.includes("application/json")) {
-      ctx.response.status = 400;
-      ctx.response.body = {
-        error: "Content-Type must be application/json.",
-      };
-      return;
-    }
+//     const contentType = requestEvent.request.headers.get("Content-Type") || "";
+//     if (!contentType.includes("application/json")) {
+//       ctx.response.status = 400;
+//       ctx.response.body = {
+//         error: "Content-Type must be application/json.",
+//       };
+//       return;
+//     }
 
-    const { name } = await requestEvent.request.json();
+//     const { name, description, audience, tone } = await requestEvent.request.json();
 
-    if (typeof name !== "string") {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Missing 'name' field." };
-      return;
-    }
+//     if (typeof name !== "string") {
+//       ctx.response.status = 400;
+//       ctx.response.body = { error: "Missing 'name' field." };
+//       return;
+//     }
 
-    // Update the presentation in the database
-    const updateResult = await users.updateOne(
-      { googleId, "presentations._id": uuid },
-      { $set: { "presentations.$.name": name } }
-    );
+//     // Update the presentation in the database
+//     const updateResult = await users.updateOne(
+//       { googleId, "presentations._id": uuid },
+//       { $set: { "presentations.$.name": name } }
+//     );
 
-    if (!updateResult.modifiedCount) {
-      ctx.response.status = 404;
-      ctx.response.body = { error: "Presentation not found." };
-      return;
-    }
+//     if (!updateResult.modifiedCount) {
+//       ctx.response.status = 404;
+//       ctx.response.body = { error: "Presentation not found." };
+//       return;
+//     }
 
-    ctx.response.status = 200;
-    ctx.response.body = { message: "Presentation updated successfully." };
-  } catch (error) {
-    console.error("Error in PATCH /presentations/:uuid:", error);
-    ctx.response.status = 500;
-    ctx.response.body = { error: "Internal Server Error" };
-  }
-});
+//     ctx.response.status = 200;
+//     ctx.response.body = { message: "Presentation updated successfully." };
+//   } catch (error) {
+//     console.error("Error in PATCH /presentations/:uuid:", error);
+//     ctx.response.status = 500;
+//     ctx.response.body = { error: "Internal Server Error" };
+//   }
+// });
 
 router.get("/presentations/:uuid", async (ctx: Context) => {
   try {

@@ -4,11 +4,24 @@ export type PresentationIdentifier = string & {
   readonly __brand: unique symbol;
 };
 
+export interface IClip {
+  slideUUID: string;
+  video: string;
+  feedback: {
+    emotion: string[];
+    contentAccuracyScore: number;
+    text: string;
+  };
+}
+
 export interface IPresentation {
   _id: PresentationIdentifier;
   slides?: string[];
+  slidesStatus: "pending" | "complete";
+  presentationStatus: "pending" | "processing" | "complete";
   createdAt: string;
   name: string;
+  clips?: IClip[];
 }
 
 console.log(API_BASE);
@@ -23,9 +36,9 @@ export const createPresentation = async (
   const formData = new FormData();
   formData.append("name", name);
   formData.append("pdf", file);
-  formData.append("description", description);
-  formData.append("audience", audience);
-  formData.append("tone", tone);
+  formData.append("presentationDescription", description);
+  formData.append("audienceDescription", audience);
+  formData.append("toneDescription", tone);
 
   const response = await fetch(`${API_BASE}/presentations`, {
     method: "POST",
@@ -77,18 +90,18 @@ export const clipPresentation = async (
   return (await response.json()) as IPresentation;
 };
 
-export const updatePresentation = async (
-  id: PresentationIdentifier,
-  name: string
-) => {
-  const response = await fetch(`${API_BASE}/presentations/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ name }),
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  });
+// export const updatePresentation = async (
+//   id: PresentationIdentifier,
+//   name: string
+// ) => {
+//   const response = await fetch(`${API_BASE}/presentations/${id}`, {
+//     method: "PATCH",
+//     body: JSON.stringify({ name }),
+//     headers: {
+//       "Content-Type": "application/json",
+//     },
+//     credentials: "include",
+//   });
 
-  return (await response.json()) as IPresentation;
-};
+//   return (await response.json()) as IPresentation;
+// };

@@ -1,4 +1,12 @@
-import { Box, Card, Code, Flex, Separator, Spinner } from "@radix-ui/themes";
+import {
+  Box,
+  Card,
+  Code,
+  Flex,
+  Separator,
+  Spinner,
+  Text,
+} from "@radix-ui/themes";
 import styles from "./Presentation.module.scss";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Panel from "./Panel";
@@ -10,9 +18,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   clipPresentation,
   getPresentation,
+  IPresentation,
   PresentationIdentifier,
 } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Chunk {
   index: number;
@@ -23,10 +32,17 @@ interface Chunk {
 export default function Presentation() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ["presentations", id],
     queryFn: () => getPresentation(id as PresentationIdentifier),
+    // Fetch the presentation every second while processing
+    refetchInterval: ({ state: { data } }) =>
+      data?.slidesStatus === "pending" ||
+      data?.presentationStatus === "processing"
+        ? 1000
+        : false,
   });
 
   const [expanded, setExpanded] = useState(true);
@@ -71,10 +87,17 @@ export default function Presentation() {
 
       if (!audioChunk.blob || !videoChunk.blob) return;
 
-      setAudioChunks((chunks) => chunks.slice(1));
-      setVideoChunks((chunks) => chunks.slice(1));
-
       console.log("Clipping");
+
+      setAudioChunks((chunks) => {
+        const _chunks = structuredClone(chunks);
+        return _chunks.slice(1);
+      });
+
+      setVideoChunks((chunks) => {
+        const _chunks = structuredClone(chunks);
+        return _chunks.slice(1);
+      });
 
       try {
         await clipPresentation(
@@ -85,6 +108,16 @@ export default function Presentation() {
           audioChunk.blob,
           audioChunk.index === data.slides.length - 1
         );
+
+        // Update the status
+        queryClient.setQueryData(
+          ["presentations", data._id],
+          (presentation: IPresentation) => {
+            const _presentation = structuredClone(presentation);
+            presentation.presentationStatus = "processing";
+            return _presentation;
+          }
+        );
       } catch (error) {
         console.error(error);
 
@@ -93,7 +126,7 @@ export default function Presentation() {
     };
 
     clip();
-  }, [videoChunks, audioChunks, data, startTime]);
+  }, [videoChunks, audioChunks, data, startTime, queryClient]);
 
   const updateIndex = useCallback(
     (index: number) => {
@@ -105,11 +138,20 @@ export default function Presentation() {
         timestamp: Date.now(),
       };
 
-      setVideoChunks((chunks) => [...chunks, chunk]);
-      setAudioChunks((chunks) => [...chunks, chunk]);
+      setVideoChunks((chunks) => {
+        const _chunks = structuredClone(chunks);
+        return [..._chunks, chunk];
+      });
+
+      setAudioChunks((chunks) => {
+        const _chunks = structuredClone(chunks);
+        return [..._chunks, chunk];
+      });
 
       videoRecorder?.requestData();
       audioRecorder?.requestData();
+
+      console.log("Requesting data");
     },
     [videoRecorder, audioRecorder]
   );
@@ -117,6 +159,8 @@ export default function Presentation() {
   const updateRecording = useCallback(
     async (recording: boolean) => {
       setRecording(recording);
+
+      setIndex(0);
 
       // Start recording
       if (recording) {
@@ -143,8 +187,17 @@ export default function Presentation() {
         timestamp: Date.now(),
       };
 
-      setVideoChunks((chunks) => [...chunks, chunk]);
-      setAudioChunks((chunks) => [...chunks, chunk]);
+      setVideoChunks((chunks) => {
+        const _chunks = structuredClone(chunks);
+        return [..._chunks, chunk];
+      });
+
+      setAudioChunks((chunks) => {
+        const _chunks = structuredClone(chunks);
+        return [..._chunks, chunk];
+      });
+
+      console.log("Requesting final data");
 
       videoRecorder?.stop();
       audioRecorder?.stop();
@@ -153,9 +206,6 @@ export default function Presentation() {
   );
 
   useEffect(() => {
-    // Initialize recording once the presentation loads
-    if (!data) return;
-
     let videoRecorder: MediaRecorder;
     let audioRecorder: MediaRecorder;
     let videoStream: MediaStream;
@@ -171,7 +221,7 @@ export default function Presentation() {
       });
 
       videoRecorder = new MediaRecorder(videoStream, {
-        mimeType: "video/mp4",
+        mimeType: "video/webm",
       });
 
       videoRecorder.addEventListener("dataavailable", (event) => {
@@ -201,6 +251,8 @@ export default function Presentation() {
       });
 
       audioRecorder.addEventListener("dataavailable", (event) => {
+        console.log("Audio data available", event.data);
+
         setAudioChunks((chunks) => {
           const _chunks = structuredClone(chunks);
 
@@ -235,7 +287,7 @@ export default function Presentation() {
         for (const track of audioTracks) track.stop();
       }
     };
-  }, [data]);
+  }, []);
 
   useEffect(() => {
     if (data || isLoading) return;
@@ -245,8 +297,11 @@ export default function Presentation() {
 
   if (!data) {
     return (
-      <Flex justify="center" align="center" flexGrow="1">
+      <Flex flexGrow="1" justify="center" align="center" gap="3">
         <Spinner size="3" />
+        <Text size="2" color="gray">
+          Loading...
+        </Text>
       </Flex>
     );
   }
@@ -263,7 +318,23 @@ export default function Presentation() {
         updateRecording={updateRecording}
       />
       <Separator size="4" />
-      {data.slides ? (
+      {data?.presentationStatus === "complete" && data?.clips ? (
+        <></>
+      ) : data?.presentationStatus === "processing" && !recording ? (
+        <Flex flexGrow="1" justify="center" align="center" gap="3">
+          <Spinner size="3" />
+          <Text size="2" color="gray">
+            Processing feedback...
+          </Text>
+        </Flex>
+      ) : !data?.slides || data?.slidesStatus === "pending" ? (
+        <Flex flexGrow="1" justify="center" align="center" gap="3">
+          <Spinner size="3" />
+          <Text size="2" color="gray">
+            Processing presentation...
+          </Text>
+        </Flex>
+      ) : (
         <Flex flexGrow="1" className={styles.body}>
           <Flex p="5" gap="5" flexGrow="1" className={styles.view}>
             <Flex flexGrow="1" justify="center" align="center">
@@ -301,8 +372,6 @@ export default function Presentation() {
             <Panel presentation={data} updateIndex={setIndex} index={index} />
           </Flex>
         </Flex>
-      ) : (
-        <></>
       )}
     </Flex>
   );
