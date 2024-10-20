@@ -33,8 +33,8 @@ personal = Notification("personal",
     name="alarm"
 )
 
-first_queue = "speech_to_text"
-second_queue = "LLM"
+first_queue = "TRANSCRIPTION"
+second_queue = "GPT"
 
 # Parse connection details
 def parse_amqp_url(amqp_url):

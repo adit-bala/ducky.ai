@@ -102,6 +102,7 @@ def get_clip_feedback(index, slide, transcript, assistant_id, thread_id):
   Send thread to assistant
   Return feedback
   '''
+  print("Starting")
   text_input = "Transcript " + str(index) + ": " + transcript + "\nNow evaluate this segment according the criteria, using the presentation description, audience description, and tone description given earlier. Format your response as bullet points under the relevant headers. Afterwards, list suggestions for improvements if there are any (be as specific as possible). Finally, give an overall score out of 10. Give your entire response in markdown format (but keep as bullet points under each main criteria, not subheaders)."
   content = [{"type":"text", "text": text_input}, {"type":"image_url", "image_url": {"url":slide}}]
   msg = OPENAI_CLIENT.beta.threads.messages.create(
@@ -277,7 +278,6 @@ def setPendingDict(pres_id, pending_dict):
 def process_message(body):
     message = body.decode()
     print(f" [x] Worker2 received: {message}")
-    # TODO: Add your processing logic here
 
     job_params = json.loads(message)
     clip_id = job_params['CLIP_ID']
@@ -311,6 +311,7 @@ def callback(ch, method, properties, body):
     try:
         process_message(body)
         ch.basic_ack(delivery_tag=method.delivery_tag)
+
     except Exception as e:
         print(f"Error processing message: {e}")
         # Optionally, send to a dead-letter queue or retry
