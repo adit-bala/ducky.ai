@@ -161,7 +161,8 @@ export default function Menu({
             <TrackNextIcon />
           </Button>
         )
-      ) : presentation.presentationStatus !== "pending" ? (
+      ) : presentation.slides &&
+        presentation.presentationStatus !== "pending" ? (
         <>
           <Button
             variant="outline"
@@ -178,7 +179,7 @@ export default function Menu({
             variant="outline"
             color="gray"
             disabled={
-              index === presentation.slides!.length - 1 ||
+              index === presentation.slides.length - 1 ||
               presentation.presentationStatus === "processing"
             }
             onClick={() => updateIndex(index + 1)}

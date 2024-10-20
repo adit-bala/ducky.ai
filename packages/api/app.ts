@@ -546,13 +546,6 @@ router.get("/presentations/:uuid", async (ctx: Context) => {
       return;
     }
 
-    // See if presentation is completed
-    if (presentation.slidesStatus === "pending") {
-      ctx.response.status = 202;
-      ctx.response.body = { message: "Presentation is still being processed." };
-      return;
-    }
-
     if (presentation.slidesStatus === "failed") {
       ctx.response.status = 400;
       ctx.response.body = { error: "Presentation processing failed." };
@@ -565,16 +558,10 @@ router.get("/presentations/:uuid", async (ctx: Context) => {
       return;
     }
 
-    if (
-      presentation.slidesStatus === "completed" &&
-      presentation.slides &&
-      presentation.slides.length > 0
-    ) {
-      // Return the presentation
-      ctx.response.status = 200;
-      ctx.response.body = presentation;
-      return;
-    }
+    // Return the presentation
+    ctx.response.status = 200;
+    ctx.response.body = presentation;
+    return;
   } catch (error) {
     console.error("Error in GET /presentations/:uuid:", error);
     ctx.response.status = 500;
