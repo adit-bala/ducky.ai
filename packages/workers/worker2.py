@@ -91,6 +91,10 @@ def redis_get_userid(pres_id, clip_id):
     d = redis_get_job_data(pres_id, clip_id)
     return d['USER_ID']
 
+def redis_get_emotions(pres_id, clip_id):
+    d = redis_get_job_data(pres_id, clip_id)
+    return d['EMOTIONS']
+
 def get_clip_feedback(index, slide, transcript, assistant_id, thread_id):
   '''
   Generate prompt
@@ -171,9 +175,33 @@ def get_final_summary(assistant_id, thread_id):
 
 def update_db(user_id, pres_id, clip_id, feedback):
     collection = database["users"]
+
+    job_data = redis_get_job_data(pres_id, clip_id)
+    
+    emotions = job_data['EMOTIONS']
+    score = job_data['SCORE']
+    slideURL = job_data['SLIDE_URL']
+    videoURL = job_data['VIDEO_URL']
+
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {f'presentations.$.clips.{clip_id}.feedback': feedback}}
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback.text': feedback}}
+        )
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback.score': score}}
+        )
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback.emotions': emotions}}
+        )
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {f'presentations.$.clips.{clip_id}.slideUUID': slideURL}}
+        )
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {f'presentations.$.clips.{clip_id}.video': videoURL}}
         )
 
 def update_db_done(user_id, pres_id):
