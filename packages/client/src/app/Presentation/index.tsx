@@ -22,6 +22,7 @@ import {
   PresentationIdentifier,
 } from "@/lib/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Feedback from "./Feedback";
 
 interface Chunk {
   index: number;
@@ -148,10 +149,13 @@ export default function Presentation() {
         return [..._chunks, chunk];
       });
 
-      videoRecorder?.requestData();
-      audioRecorder?.requestData();
+      videoRecorder?.stop();
+      audioRecorder?.stop();
 
       console.log("Requesting data");
+
+      videoRecorder?.start();
+      audioRecorder?.start();
     },
     [videoRecorder, audioRecorder]
   );
@@ -319,7 +323,7 @@ export default function Presentation() {
       />
       <Separator size="4" />
       {data?.presentationStatus === "complete" && data?.clips ? (
-        <></>
+        <Feedback presentation={data} index={index} />
       ) : data?.presentationStatus === "processing" && !recording ? (
         <Flex flexGrow="1" justify="center" align="center" gap="3">
           <Spinner size="3" />
@@ -369,7 +373,11 @@ export default function Presentation() {
             })}
           >
             <Separator orientation="vertical" size="4" />
-            <Panel presentation={data} updateIndex={setIndex} index={index} />
+            <Panel
+              presentation={data}
+              updateIndex={(index) => !recording && setIndex(index)}
+              index={index}
+            />
           </Flex>
         </Flex>
       )}

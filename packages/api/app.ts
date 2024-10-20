@@ -552,7 +552,7 @@ router.get("/presentations/:uuid", async (ctx: Context) => {
       return;
     }
 
-    if (!presentation.slides || presentation.slides.length === 0) {
+    if (presentation.slides && presentation.slides.length === 0) {
       ctx.response.status = 400;
       ctx.response.body = { error: "Presentation has no slides." };
       return;
