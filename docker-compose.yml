@@ -98,6 +98,7 @@ services:
       - OPENAI_PROJECT=${OPENAI_PROJECT}
       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
       - HUME_API_KEY=${HUME_API_KEY}
+      - ARIZE_API_KEY=${ARIZE_API_KEY}
     networks:
       - app-network
 
@@ -123,6 +124,7 @@ services:
       - OPENAI_ORGANIZATION=${OPENAI_ORGANIZATION}
       - OPENAI_PROJECT=${OPENAI_PROJECT}
       - ASSISTANT_ID=${ASSISTANT_ID}
+      - ARIZE_API_KEY=${ARIZE_API_KEY}
     networks:
       - app-network
 
