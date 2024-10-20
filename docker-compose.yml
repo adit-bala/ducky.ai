@@ -1,4 +1,24 @@
 services:
+  nginx:
+    build:
+      context: ./packages/nginx
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+      - client
+    networks:
+      - app-network
+    ports:
+      - 8080:8080
+
+  client:
+    build:
+      context: ./packages/client
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    networks:
+      - app-network
 
   api:
     build:

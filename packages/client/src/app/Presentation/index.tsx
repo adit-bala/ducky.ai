@@ -9,7 +9,6 @@ import { formatDuration } from "@/lib/time";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   clipPresentation,
-  endPresentation,
   getPresentation,
   PresentationIdentifier,
 } from "@/lib/api";
@@ -81,21 +80,11 @@ export default function Presentation() {
         await clipPresentation(
           data._id,
           audioChunk.index,
-          audioChunk.timestamp,
+          audioChunk.timestamp - startTime,
           videoChunk.blob,
-          audioChunk.blob
+          audioChunk.blob,
+          audioChunk.index === data.slides.length - 1
         );
-      } catch (error) {
-        console.error(error);
-
-        // TODO: Handle error
-      }
-
-      if (audioChunk.index !== data.slides.length - 1) return;
-
-      // End of presentation
-      try {
-        await endPresentation(data._id);
       } catch (error) {
         console.error(error);
 
@@ -104,7 +93,7 @@ export default function Presentation() {
     };
 
     clip();
-  }, [videoChunks, audioChunks, data]);
+  }, [videoChunks, audioChunks, data, startTime]);
 
   const updateIndex = useCallback(
     (index: number) => {

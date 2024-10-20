@@ -1,1 +1,3 @@
-export const API_BASE = "http://localhost:8080";
+export const API_BASE = import.meta.env.DEV
+  ? "http://localhost:3001"
+  : `${window.location.origin}/api`;

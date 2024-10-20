@@ -144,7 +144,9 @@ export default function Menu({
           {presentation.name}
         </Text>
         <Text size="1" color="gray">
-          {presentation.slides!.length} slides
+          {presentation.slides
+            ? `${presentation.slides.length} slides`
+            : "Processing..."}
         </Text>
       </Flex>
       {recording && presentation.slides ? (

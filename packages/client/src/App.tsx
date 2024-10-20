@@ -9,7 +9,6 @@ import Presentations from "@/app/Presentations";
 import Presentation from "@/app/Presentation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
-import "@radix-ui/themes/styles.css";
 
 const router = createBrowserRouter([
   {

@@ -11,10 +11,21 @@ export interface IPresentation {
   name: string;
 }
 
-export const createPresentation = async (name: string, pdf: File) => {
+console.log(API_BASE);
+
+export const createPresentation = async (
+  file: File,
+  name: string,
+  description: string,
+  audience: string,
+  tone: string
+) => {
   const formData = new FormData();
   formData.append("name", name);
-  formData.append("pdf", pdf);
+  formData.append("pdf", file);
+  formData.append("description", description);
+  formData.append("audience", audience);
+  formData.append("tone", tone);
 
   const response = await fetch(`${API_BASE}/presentations`, {
     method: "POST",
@@ -41,21 +52,13 @@ export const getPresentations = async () => {
   return (await response.json()) as IPresentation[];
 };
 
-export const endPresentation = async (id: PresentationIdentifier) => {
-  const response = await fetch(`${API_BASE}/presentations/${id}/end`, {
-    method: "POST",
-    credentials: "include",
-  });
-
-  return response.ok;
-};
-
 export const clipPresentation = async (
   id: PresentationIdentifier,
   index: number,
   timestamp: number,
   video: Blob,
-  audio: Blob
+  audio: Blob,
+  end = false
 ) => {
   const formData = new FormData();
   formData.append("slideIndex", index.toString());
@@ -63,6 +66,7 @@ export const clipPresentation = async (
   formData.append("clipTimestamp", timestamp.toString());
   formData.append("videoFile", video);
   formData.append("audioFile", audio);
+  formData.append("isEnd", end.toString());
 
   const response = await fetch(`${API_BASE}/presentations/${id}/clip`, {
     method: "POST",

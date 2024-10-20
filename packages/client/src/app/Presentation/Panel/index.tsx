@@ -3,7 +3,7 @@ import { Box, Flex } from "@radix-ui/themes";
 import styles from "./Panel.module.scss";
 import classNames from "classnames";
 import { useEffect, useRef } from "react";
-import { IPresentation } from "@/lib/presentations";
+import { IPresentation } from "@/lib/api";
 
 interface PanelProps {
   presentation: IPresentation;
@@ -35,7 +35,7 @@ export default function Panel({
   return (
     <Box className={styles.root}>
       <Flex direction="column" p="4" gap="4" ref={rootRef}>
-        {presentation.slides.map((slide, index) => (
+        {presentation.slides?.map((slide, index) => (
           <div
             className={classNames(styles.slide, {
               [styles.active]: index === currentIndex,
