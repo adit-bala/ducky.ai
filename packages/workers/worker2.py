@@ -102,7 +102,7 @@ def get_clip_feedback(index, slide, transcript, assistant_id, thread_id):
   Send thread to assistant
   Return feedback
   '''
-  text_input = "Transcript " + str(index) + ": " + transcript + "\nNow evaluate this segment according the criteria given earlier."
+  text_input = "Transcript " + str(index) + ": " + transcript + "\nNow evaluate this segment according the criteria, using the presentation description, audience description, and tone description given earlier. Format your response as bullet points under the relevant headers. Afterwards, list suggestions for improvements if there are any (be as specific as possible). Finally, give an overall score out of 10. Give your entire response in markdown format (but keep as bullet points under each main criteria, not subheaders)."
   content = [{"type":"text", "text": text_input}, {"type":"image_url", "image_url": {"url":slide}}]
   msg = OPENAI_CLIENT.beta.threads.messages.create(
     thread_id,

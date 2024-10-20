@@ -98,6 +98,7 @@ def create_thread(user_id, pres_id):
 
     # Construct the initial message
     initial_message = (
+        "Now you will be given descriptions of the presentation's context, the audience, and the tone.\n"
         f"This presentation is about: {presentation_description}. "
         f"The audience is: {audience_description}. "
         f"The tone should be: {tone_description}."
