@@ -60,7 +60,6 @@ except redis.AuthenticationError:
 except Exception as e:
     print(f"REDIS connection error: {e}")
 
-# Rest of your code...
 
 def redis_get_next(pres_id):
     return int(redis_client.hget(pres_id, 'next'))
@@ -185,19 +184,19 @@ def update_db(user_id, pres_id, clip_id, feedback):
         )
 def update_db_done(user_id, pres_id):
     collection = database["users"]
-    file_path = f"feedback_{user_id}_{pres_id}.json"
     
-    # Read existing data if file exists
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
-            data = json.load(file)
-    else:
-        data = {}
-    
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {'presentations.$.presentationStatus': 'completed'}}
+        )
+
+def update_db_pending(user_id, pres_id):
+    collection = database["users"]
+
     # Update presentation status
     if pres_id not in data:
         data[pres_id] = {}
-    data[pres_id]['presentationStatus'] = 'completed'
+    data[pres_id]['presentationStatus'] = 'pending'
     
     # Write updated data back to file
     with open(file_path, 'w') as file:
@@ -206,7 +205,15 @@ def update_db_done(user_id, pres_id):
     print(f"Presentation status updated in {file_path}")
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {'presentations.$.presentationStatus': 'completed'}}
+            {"$set": {'presentations.$.presentationStatus': 'pending'}}
+        )
+
+def update_db_summary(user_id, pres_id, summary):
+    collection = database["users"]
+    
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {'presentations.$.summary': summary}}
         )
 
 def process_gpt_job(job_params):
@@ -215,16 +222,21 @@ def process_gpt_job(job_params):
     slide_url = redis_get_slideurl(pres_id, clip_id)
     transcript = redis_get_transcript(pres_id, clip_id)
     thread_id = redis_get_threadid(pres_id)
+    user_id = redis_get_userid(pres_id, clip_id)
+
+    if int(clip_id) == 0:
+        update_db_pending(user_id, pres_id)
+
     feedback = get_clip_feedback(clip_id, slide_url, transcript, ASSISTANT_ID, thread_id)
 
     if redis_get_final_status(pres_id, clip_id) != "false":
         overall = get_overall_critic(ASSISTANT_ID, thread_id)
         summary = get_final_summary(ASSISTANT_ID, thread_id)
         tot_sum = overall + "\n\n" + summary
-        update_db(redis_get_userid(pres_id, clip_id), pres_id, int(clip_id) + 1, tot_sum)
+        update_db_summary(user_id, pres_id, tot_sum)
 
 
-    update_db(redis_get_userid(pres_id, clip_id), pres_id, clip_id, feedback)
+    update_db(user_id, pres_id, clip_id, feedback)
     if redis_get_final_status(pres_id, clip_id) != "false":
        update_db_done(redis_get_userid(pres_id, clip_id), pres_id)
 

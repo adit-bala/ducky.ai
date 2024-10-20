@@ -7,6 +7,7 @@ import redis
 from openai import OpenAI
 from deepgram import DeepgramClient, PrerecordedOptions
 import asyncio
+from pymongo import MongoClient
 
 
 
@@ -22,6 +23,12 @@ REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
 OPEN_API_KEY= os.getenv("OPEN_API_KEY")
 DEEPGRAM_API_KEY= os.getenv("DEEPGRAM_API_KEY")
+MONGO_URI = os.getenv("MONGO_URI")
+MONGO_DB = os.getenv("MONGO_DB")
+
+mongo_client = MongoClient(MONGO_URI)
+database = mongo_client[MONGO_DB]
+
 
 OPENAI_CLIENT = OpenAI(
   api_key=OPEN_API_KEY,
@@ -61,8 +68,58 @@ def redis_add_gpt_job(pres_id, user_id, clip_id, transcript, slide_url, is_end):
     }
     re.hset(pres_id, clip_id, json.dumps(data))
 
-def create_thread():
-    thread = OPENAI_CLIENT.beta.threads.create()
+def create_thread(user_id, pres_id):
+    collection = database["users"]
+    
+    # Find the user with the given user_id and the presentation with the given pres_id
+    result = collection.find_one(
+        {'googleId': user_id, 'presentations._id': pres_id},
+        {'presentations.$': 1}
+    )
+
+    if not result or 'presentations' not in result or len(result['presentations']) == 0:
+        print(f"No presentation found for user_id: {user_id}, pres_id: {pres_id}")
+        return None  # Or handle as appropriate
+
+    preset = result['presentations'][0].get('preset', {})
+    
+    # Validate preset fields
+    presentation_description = preset.get('presentationDescription')
+    audience_description = preset.get('audienceDescription')
+    tone_description = preset.get('toneDescription')
+
+    if not all([presentation_description, audience_description, tone_description]):
+        print("Incomplete preset data. Please ensure all preset fields are provided.")
+        return None  # Or handle as appropriate
+
+    # Construct the initial message
+    initial_message = (
+        f"This presentation is about: {presentation_description}. "
+        f"The audience is: {audience_description}. "
+        f"The tone should be: {tone_description}."
+    )
+    
+    # Create a new OpenAI thread
+    try:
+        thread = OPENAI_CLIENT.beta.threads.create()
+    except Exception as e:
+        print(f"Failed to create OpenAI thread: {e}")
+        return None  # Or handle as appropriate
+    
+    # Structure the content as a list of message objects
+    content = [{"type": "text", "text": initial_message}]
+    
+    # Send the initial message to the OpenAI thread
+    try:
+        OPENAI_CLIENT.beta.threads.messages.create(
+            thread_id=thread.id,
+            role="user",
+            content=content
+        )
+    except Exception as e:
+        print(f"Failed to send initial message to OpenAI thread: {e}")
+        return None  # Or handle as appropriate
+    
     return thread.id
 
 def get_transcript(audio_url):
@@ -86,7 +143,7 @@ def process_transcription_job(job_params):
     pres_id = job_params["presentationID"]
 
     if not redis_presentation_exists(pres_id):
-        thread_id = create_thread()
+        thread_id = create_thread(user_id, pres_id)
         redis_create_presentation(pres_id, thread_id)
     
     redis_add_gpt_job(
