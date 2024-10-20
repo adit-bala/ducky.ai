@@ -109,29 +109,33 @@ export default function Presentation() {
           audioChunk.blob,
           audioChunk.index === data.slides.length - 1
         );
-
-        // Update the status
-        queryClient.setQueryData(
-          ["presentations", data._id],
-          (presentation: IPresentation) => {
-            const _presentation = structuredClone(presentation);
-            presentation.presentationStatus = "processing";
-            return _presentation;
-          }
-        );
       } catch (error) {
         console.error(error);
 
         // TODO: Handle error
       }
+
+      // Update the status
+      queryClient.setQueryData<IPresentation>(
+        ["presentations", id],
+        (presentation) => {
+          if (!presentation) return;
+
+          const _presentation = structuredClone(presentation);
+          _presentation.presentationStatus = "processing";
+          return _presentation;
+        }
+      );
     };
 
     clip();
-  }, [videoChunks, audioChunks, data, startTime, queryClient]);
+  }, [videoChunks, audioChunks, data, startTime, queryClient, id]);
 
   const updateIndex = useCallback(
     (index: number) => {
       setIndex(index);
+
+      if (!recording) return;
 
       // Prepare for a clip
       const chunk = {
@@ -157,7 +161,7 @@ export default function Presentation() {
       videoRecorder?.start();
       audioRecorder?.start();
     },
-    [videoRecorder, audioRecorder]
+    [videoRecorder, audioRecorder, recording]
   );
 
   const updateRecording = useCallback(
