@@ -221,6 +221,9 @@ router.post("/presentations", async (ctx: Context) => {
 
     const pdfFile = form.get("pdf");
     const name = form.get("name");
+    const presentationDescription = form.get("presentationDescription");
+    const audienceDescription = form.get("audienceDescription");
+    const toneDescription = form.get("toneDescription");
 
     if (!(pdfFile instanceof File) || typeof name !== "string") {
       ctx.response.status = 400;
@@ -279,6 +282,11 @@ router.post("/presentations", async (ctx: Context) => {
       name: name,
       createdAt: new Date(),
       pdfKey: pdfKey, // Store the S3 key for future reference
+      preset: {
+        presentationDescription: presentationDescription,
+        audienceDescription: audienceDescription,
+        toneDescription: toneDescription,
+      },
       slidesStatus: "pending",
       presentationStatus: "pending",
     };
