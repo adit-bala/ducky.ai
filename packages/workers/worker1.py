@@ -55,6 +55,8 @@ if not RABBITMQ_URL:
 deepgram_api_key = os.getenv("DEEPGRAM_API_KEY")
 deepgram = DeepgramClient(deepgram_api_key)
 
+
+
 def redis_presentation_exists(pres_id):
     return re.hget(pres_id, 'thread_id') != None
 
