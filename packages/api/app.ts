@@ -552,12 +552,6 @@ router.get("/presentations/:uuid", async (ctx: Context) => {
       return;
     }
 
-    if (!presentation.slides || presentation.slides.length === 0) {
-      ctx.response.status = 400;
-      ctx.response.body = { error: "Presentation has no slides." };
-      return;
-    }
-
     // Return the presentation
     ctx.response.status = 200;
     ctx.response.body = presentation;
@@ -640,20 +634,6 @@ router.post("/presentations/:presentationUUID/clip", async (ctx: Context) => {
     }
 
     const isEnd = isEndString === "true"; // convert to boolean
-
-    console.log("videoFile.type", videoFile.type);
-    console.log("audioFile.type", audioFile.type);
-
-    if (
-      !videoFile.type.includes("video/webm") ||
-      !audioFile.type.includes("audio/webm")
-    ) {
-      ctx.response.status = 400;
-      ctx.response.body = {
-        error: "Uploaded files must be of type video/webm and audio/webm.",
-      };
-      return;
-    }
 
     const videoArrayBuffer = await videoFile.arrayBuffer();
     const videoContent = new Uint8Array(videoArrayBuffer);

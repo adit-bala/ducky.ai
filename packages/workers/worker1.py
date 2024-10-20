@@ -6,6 +6,7 @@ import time
 import redis
 from openai import OpenAI
 from deepgram import DeepgramClient, PrerecordedOptions
+from hume import HumeClient
 import asyncio
 from pymongo import MongoClient
 
