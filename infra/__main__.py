@@ -500,7 +500,7 @@ s3_bucket_notification = s3.BucketNotification("bucketNotif",
             lambda_function_arn=lambda_function_audio.arn,
             events=["s3:ObjectCreated:*"],
             filter_prefix="Users/",
-            filter_suffix=".webm"
+            filter_suffix="audio.webm"
         )
     ],
     opts=pulumi.ResourceOptions(depends_on=[

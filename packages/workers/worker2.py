@@ -91,6 +91,10 @@ def redis_get_userid(pres_id, clip_id):
     d = redis_get_job_data(pres_id, clip_id)
     return d['USER_ID']
 
+def redis_get_emotions(pres_id, clip_id):
+    d = redis_get_job_data(pres_id, clip_id)
+    return d['EMOTIONS']
+
 def get_clip_feedback(index, slide, transcript, assistant_id, thread_id):
   '''
   Generate prompt
@@ -98,7 +102,7 @@ def get_clip_feedback(index, slide, transcript, assistant_id, thread_id):
   Send thread to assistant
   Return feedback
   '''
-  text_input = "Transcript " + str(index) + ": " + transcript + "\nNow evaluate this segment according the criteria given earlier."
+  text_input = "Transcript " + str(index) + ": " + transcript + "\nNow evaluate this segment according the criteria, using the presentation description, audience description, and tone description given earlier. Format your response as bullet points under the relevant headers. Afterwards, list suggestions for improvements if there are any (be as specific as possible). Finally, give an overall score out of 10. Give your entire response in markdown format (but keep as bullet points under each main criteria, not subheaders)."
   content = [{"type":"text", "text": text_input}, {"type":"image_url", "image_url": {"url":slide}}]
   msg = OPENAI_CLIENT.beta.threads.messages.create(
     thread_id,
@@ -171,9 +175,33 @@ def get_final_summary(assistant_id, thread_id):
 
 def update_db(user_id, pres_id, clip_id, feedback):
     collection = database["users"]
+
+    job_data = redis_get_job_data(pres_id, clip_id)
+    
+    emotions = job_data['EMOTIONS']
+    score = job_data['SCORE']
+    slideURL = job_data['SLIDE_URL']
+    videoURL = job_data['VIDEO_URL']
+
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {f'presentations.$.clips.{clip_id}.feedback': feedback}}
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback.text': feedback}}
+        )
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback.score': score}}
+        )
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback.emotions': emotions}}
+        )
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {f'presentations.$.clips.{clip_id}.slideUUID': slideURL}}
+        )
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {f'presentations.$.clips.{clip_id}.video': videoURL}}
         )
 
 def update_db_done(user_id, pres_id):
