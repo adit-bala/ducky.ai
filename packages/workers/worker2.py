@@ -126,32 +126,8 @@ def get_clip_feedback(index, slide, transcript, assistant_id, thread_id):
 
   return thread_messages.data[0].content[0].text.value
 
-def get_overall_critic(assistant_id, thread_id):
-    text_input = "Now evaluate the whole presentation on the following criteria:\n\t- Overall narrative flow\n\t- Were there enough images or graphics to break up monotony of text\n\t- How all the segments work together for goal of the overall presentation"
-    content = [{"type":"text", "text": text_input}]
-    msg = OPENAI_CLIENT.beta.threads.messages.create(
-        thread_id,
-        role="user",
-        content=content
-    )
-    thread_messages = OPENAI_CLIENT.beta.threads.messages.list(thread_id)
-    msg_sz = len(thread_messages.data)
-    run = OPENAI_CLIENT.beta.threads.runs.create(
-        thread_id=thread_id,
-        assistant_id=assistant_id
-    )
-
-    while run.status != "completed":
-        print(run.status)
-        time.sleep(1.5)
-        run = OPENAI_CLIENT.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-
-    thread_messages = OPENAI_CLIENT.beta.threads.messages.list(thread_id)
-
-    return thread_messages.data[0].content[0].text.value
-
 def get_final_summary(assistant_id, thread_id):
-    text_input = "Summarize all your previous feedback in one or two paragraphs. Include the most important suggestions for improvement."
+    text_input = "The presentation is over. Give a score out of 10 for the entire presentation. Keeping in mind the presentation description, audience description, and tone description, summarize all your feedback, emphasizing the most important suggestions for improvement and if the presentation was effective in achieving its goal. Keep in mind the visuals of slides, accuracy of content, if it concluded in a satisfying manner, the overall narrative flow and how all the segments fit together. Give your entire response in markdown format"
     content = [{"type":"text", "text": text_input}]
     msg = OPENAI_CLIENT.beta.threads.messages.create(
         thread_id,
@@ -243,10 +219,8 @@ def process_gpt_job(job_params):
     feedback = get_clip_feedback(clip_id, slide_url, transcript, ASSISTANT_ID, thread_id)
 
     if redis_get_final_status(pres_id, clip_id) != "false":
-        overall = get_overall_critic(ASSISTANT_ID, thread_id)
         summary = get_final_summary(ASSISTANT_ID, thread_id)
-        tot_sum = overall + "\n\n" + summary
-        update_db_summary(user_id, pres_id, tot_sum)
+        update_db_summary(user_id, pres_id, summary)
 
 
     update_db(user_id, pres_id, clip_id, feedback)
