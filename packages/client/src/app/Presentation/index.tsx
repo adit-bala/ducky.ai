@@ -327,7 +327,22 @@ export default function Presentation() {
       />
       <Separator size="4" />
       {data?.presentationStatus === "complete" && data?.clips ? (
-        <Feedback presentation={data} index={index} />
+        <Flex flexGrow="1" className={styles.body}>
+          <Feedback presentation={data} index={index} />
+          <Flex
+            flexShrink="0"
+            className={classNames({
+              [styles.hidden]: !expanded,
+            })}
+          >
+            <Separator orientation="vertical" size="4" />
+            <Panel
+              presentation={data}
+              updateIndex={(index) => !recording && setIndex(index)}
+              index={index}
+            />
+          </Flex>
+        </Flex>
       ) : data?.presentationStatus === "processing" && !recording ? (
         <Flex flexGrow="1" justify="center" align="center" gap="3">
           <Spinner size="3" />

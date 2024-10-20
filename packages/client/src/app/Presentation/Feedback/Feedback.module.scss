@@ -1,0 +1,21 @@
+.root {
+  overflow: auto;
+
+  .score {
+    display: grid;
+    place-items: center;
+    background-color: var(--accent-9);
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    line-height: 1;
+    height: 40px;
+    width: 40px;
+  }
+
+  .video {
+    width: 100%;
+    border-radius: 8px;
+  }
+}

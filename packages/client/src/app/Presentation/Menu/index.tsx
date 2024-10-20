@@ -170,7 +170,7 @@ export default function Menu({
             disabled={
               index === 0 || presentation.presentationStatus === "processing"
             }
-            onClick={() => updateIndex(index + 1)}
+            onClick={() => updateIndex(Math.max(index - 1, 0))}
           >
             <TrackPreviousIcon />
             Previous slide
@@ -182,7 +182,9 @@ export default function Menu({
               index === presentation.slides.length - 1 ||
               presentation.presentationStatus === "processing"
             }
-            onClick={() => updateIndex(index + 1)}
+            onClick={() =>
+              updateIndex(Math.min(index + 1, presentation.slides!.length - 1))
+            }
           >
             Next slide
             <TrackNextIcon />
