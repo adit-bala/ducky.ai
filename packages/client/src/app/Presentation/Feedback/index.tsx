@@ -37,7 +37,7 @@ export default function Feedback({ presentation, index }: FeedbackProps) {
             </Flex>
           )}
           {typeof clip.feedback.emotionScore !== "string" && (
-            <Flex gap="3">
+            <Flex gap="3" align="center">
               <div className={styles.score}>
                 {(clip.feedback.emotionScore + 1) * 50}
               </div>
