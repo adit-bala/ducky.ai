@@ -192,20 +192,10 @@ def update_db_done(user_id, pres_id):
 
 def update_db_pending(user_id, pres_id):
     collection = database["users"]
-
-    # Update presentation status
-    if pres_id not in data:
-        data[pres_id] = {}
-    data[pres_id]['presentationStatus'] = 'pending'
     
-    # Write updated data back to file
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=2)
-    
-    print(f"Presentation status updated in {file_path}")
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {'presentations.$.presentationStatus': 'pending'}}
+            {"$set": {'presentations.$.presentationStatus': 'processing'}}
         )
 
 def update_db_summary(user_id, pres_id, summary):
