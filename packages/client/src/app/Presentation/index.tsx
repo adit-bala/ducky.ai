@@ -171,7 +171,7 @@ export default function Presentation() {
       });
 
       videoRecorder = new MediaRecorder(videoStream, {
-        mimeType: "video/mp4",
+        mimeType: "video/webm",
       });
 
       videoRecorder.addEventListener("dataavailable", (event) => {

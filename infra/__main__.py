@@ -339,7 +339,7 @@ def handler(event, context):
             audio_url = f"{s3_bucket_website_endpoint}/{key}"
 
             # Video URL
-            video_key = f"Users/{user_id}/presentations/{presentation_id}/clips/{clip_index}_{clip_timestamp}_{is_end}/{slide_index}/video.mp4"
+            video_key = f"Users/{user_id}/presentations/{presentation_id}/clips/{clip_index}_{clip_timestamp}_{is_end}/{slide_index}/video.webm"
             video_url = f"{s3_bucket_website_endpoint}/{video_key}"
 
             # Slide URL (assuming slides are stored in a specific location)

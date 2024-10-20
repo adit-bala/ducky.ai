@@ -623,7 +623,7 @@ router.post("/presentations/:presentationUUID/clip", async (ctx: Context) => {
     const slideIndex = form.get("slideIndex"); // string
     const clipIndex = form.get("clipIndex"); // string
     const clipTimestamp = form.get("clipTimestamp"); // string
-    const videoFile = form.get("videoFile"); // .mp4
+    const videoFile = form.get("videoFile"); // .webm
     const audioFile = form.get("audioFile"); // .webm
     const isEndString = form.get("isEnd"); // string
 
@@ -658,12 +658,12 @@ router.post("/presentations/:presentationUUID/clip", async (ctx: Context) => {
     console.log("audioFile.type", audioFile.type);
 
     if (
-      !videoFile.type.includes("video/mp4") ||
+      !videoFile.type.includes("video/webm") ||
       !audioFile.type.includes("audio/webm")
     ) {
       ctx.response.status = 400;
       ctx.response.body = {
-        error: "Uploaded files must be of type video/mp4 and audio/webm.",
+        error: "Uploaded files must be of type video/webm and audio/webm.",
       };
       return;
     }
@@ -681,7 +681,7 @@ router.post("/presentations/:presentationUUID/clip", async (ctx: Context) => {
     );
 
     const clipPrefix = `Users/${userId}/presentations/${presentationUUID}/clips/${clipIndex}_${clipTimestamp}_${isEnd}/${slideIndex}/`;
-    const videoKey = `${clipPrefix}video.mp4`;
+    const videoKey = `${clipPrefix}video.webm`;
     const audioKey = `${clipPrefix}audio.webm`;
 
     // Upload video to S3 with error handling
@@ -689,7 +689,7 @@ router.post("/presentations/:presentationUUID/clip", async (ctx: Context) => {
       Bucket: Deno.env.get("S3_BUCKET_NAME")!,
       Key: videoKey,
       Body: videoContent,
-      ContentType: "video/mp4",
+      ContentType: "video/webm",
     });
 
     try {
