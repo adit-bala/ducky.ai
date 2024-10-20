@@ -170,18 +170,12 @@ def get_final_summary(assistant_id, thread_id):
     return thread_messages.data[0].content[0].text.value
 
 def update_db(user_id, pres_id, clip_id, feedback):
-    print(feedback)
-
     collection = database["users"]
-    print("COLLECTION", collection)
-    print("user_id", user_id, "pres_id", pres_id, "clip_id", clip_id, "feedback", feedback)
-    for doc in collection.find():
-        print(doc)
-
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
             {"$set": {f'presentations.$.clips.{clip_id}.feedback': feedback}}
         )
+
 def update_db_done(user_id, pres_id):
     collection = database["users"]
     
@@ -192,20 +186,10 @@ def update_db_done(user_id, pres_id):
 
 def update_db_pending(user_id, pres_id):
     collection = database["users"]
-
-    # Update presentation status
-    if pres_id not in data:
-        data[pres_id] = {}
-    data[pres_id]['presentationStatus'] = 'pending'
     
-    # Write updated data back to file
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=2)
-    
-    print(f"Presentation status updated in {file_path}")
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {'presentations.$.presentationStatus': 'pending'}}
+            {"$set": {'presentations.$.presentationStatus': 'processing'}}
         )
 
 def update_db_summary(user_id, pres_id, summary):
