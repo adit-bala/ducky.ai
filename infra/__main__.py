@@ -4,10 +4,172 @@ import os
 from pulumi_aws import kms, s3, iam, lambda_, cloudwatch
 from pulumi_command import local
 from pulumi_cloudamqp import Instance, Notification, Alarm
+import pulumi_gcp as gcp
 from dotenv import load_dotenv
+from pulumi.config import Config
 
 # Load .env file
 load_dotenv()
+config = Config()
+
+# Retrieve non-sensitive environment variables
+api_port = config.require("API_PORT")
+mongo_uri = config.require("MONGO_URI")
+mongo_db = config.require("MONGO_DB")
+mongo_port = config.require("MONGO_PORT")
+aws_region = config.require("AWS_REGION")
+s3_bucket_name = config.require("S3_BUCKET_NAME")
+s3_bucket_website_endpoint = config.require("S3_BUCKET_WEBSITE_ENDPOINT")
+google_client_id = config.require("GOOGLE_CLIENT_ID")
+google_redirect_uri = config.require("GOOGLE_REDIRECT_URI")
+env = config.require("ENV")
+first_queue = config.require("FIRST_QUEUE")
+second_queue = config.require("SECOND_QUEUE")
+redis_host = config.require("REDIS_HOST")
+redis_port = config.require("REDIS_PORT")
+openai_organization = config.require("OPENAI_ORGANIZATION")
+openai_project = config.require("OPENAI_PROJECT")
+assistant_id = config.require("ASSISTANT_ID")
+client_port = config.require("CLIENT_PORT")
+phoenix_collector_endpoint = config.require("PHOENIX_COLLECTOR_ENDPOINT")
+
+# Retrieve sensitive environment variables
+aws_access_key_id = config.require_secret("AWS_ACCESS_KEY_ID")
+aws_secret_access_key = config.require_secret("AWS_SECRET_ACCESS_KEY")
+google_client_secret = config.require_secret("GOOGLE_CLIENT_SECRET")
+cloudamqp_api_key = config.require_secret("CLOUDAMQP_API_KEY")
+rabbitmq_uri = config.require_secret("RABBITMQ_URI")
+redis_password = config.require_secret("REDIS_PASSWORD")
+openai_api_key = config.require_secret("OPENAI_API_KEY")
+deepgram_api_key = config.require_secret("DEEPGRAM_API_KEY")
+hume_api_key = config.require_secret("HUME_API_KEY")
+arize_api_key = config.require_secret("ARIZE_API_KEY")
+otel_exporter_otlp_headers = config.require_secret("OTEL_EXPORTER_OTLP_HEADERS")
+phoenix_client_headers = config.require_secret("PHOENIX_CLIENT_HEADERS")
+
+# =========================
+# 0. Google Cloud VM
+# =========================
+
+# Define the environment variables content
+env_content = f"""
+API_PORT={api_port}
+MONGO_URI={mongo_uri}
+MONGO_DB={mongo_db}
+MONGO_PORT={mongo_port}
+AWS_REGION={aws_region}
+AWS_ACCESS_KEY_ID={aws_access_key_id}
+AWS_SECRET_ACCESS_KEY={aws_secret_access_key}
+S3_BUCKET_NAME={s3_bucket_name}
+S3_BUCKET_WEBSITE_ENDPOINT={s3_bucket_website_endpoint}
+GOOGLE_CLIENT_ID={google_client_id}
+GOOGLE_CLIENT_SECRET={google_client_secret}
+GOOGLE_REDIRECT_URI={google_redirect_uri}
+CLOUDAMQP_API_KEY={cloudamqp_api_key}
+ENV={env}
+RABBITMQ_URI={rabbitmq_uri}
+FIRST_QUEUE={first_queue}
+SECOND_QUEUE={second_queue}
+REDIS_HOST={redis_host}
+REDIS_PORT={redis_port}
+REDIS_PASSWORD={redis_password}
+OPENAI_API_KEY={openai_api_key}
+OPENAI_ORGANIZATION={openai_organization}
+OPENAI_PROJECT={openai_project}
+ASSISTANT_ID={assistant_id}
+CLIENT_PORT={client_port}
+DEEPGRAM_API_KEY={deepgram_api_key}
+HUME_API_KEY={hume_api_key}
+ARIZE_API_KEY={arize_api_key}
+OTEL_EXPORTER_OTLP_HEADERS={otel_exporter_otlp_headers}
+PHOENIX_CLIENT_HEADERS={phoenix_client_headers}
+PHOENIX_COLLECTOR_ENDPOINT={phoenix_collector_endpoint}
+"""
+
+# Define the startup script with environment variables
+# Define the startup script with environment variables
+startup_script = f"""#!/bin/bash
+set -e
+export DEBIAN_FRONTEND=noninteractive
+
+# Log output to a file for troubleshooting
+exec > >(tee -i /var/log/startup-script.log)
+exec 2>&1
+
+# Update the package index
+sudo apt-get update -y
+
+# Install required packages
+sudo apt-get install -y \\
+    git \\
+    apt-transport-https \\
+    ca-certificates \\
+    curl \\
+    gnupg \\
+    lsb-release \\
+    software-properties-common
+
+# Add Docker's official GPG key
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Set up the Docker repository
+echo \\
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \\
+  https://download.docker.com/linux/debian \\
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Update the package index again
+sudo apt-get update -y
+
+# Install Docker Engine and Docker Compose plugin
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Verify installations
+docker --version
+docker compose version
+
+# Add current user to the docker group
+sudo usermod -aG docker $(whoami)
+
+# Clone the GitHub repository
+git clone https://github.com/adit-bala/ducky.ai.git /home/debian/ducky.ai
+
+# Navigate to the repository directory
+cd /home/debian/ducky.ai
+
+# Create the .env file with environment variables
+cat <<EOF > .env
+{env_content}
+EOF
+
+# Secure the .env file
+chmod 600 .env
+
+# Build and run Docker containers
+docker compose up --build -d
+
+# Enable Docker to start on boot
+sudo systemctl enable docker
+"""
+
+# Define the VM instance with the updated startup script
+gcp_instance = gcp.compute.Instance("gcpinstance",
+    machine_type="e2-medium",  # Adjust as needed
+    zone="us-central1-a",
+    boot_disk={
+        "initialize_params": {
+            "image": "debian-cloud/debian-11",
+        },
+    },
+    network_interfaces=[gcp.compute.InstanceNetworkInterfaceArgs(
+        network="default",
+        access_configs=[gcp.compute.InstanceNetworkInterfaceAccessConfigArgs()]  # Assigns a public IP
+    )],
+    metadata_startup_script=startup_script,
+    # Optionally, specify tags or other configurations here
+)
+
 
 # ========================
 # 1. CloudAMPQ 
@@ -33,8 +195,8 @@ personal = Notification("personal",
     name="alarm"
 )
 
-first_queue = "speech_to_text"
-second_queue = "LLM"
+first_queue = "TRANSCRIPTION"
+second_queue = "GPT"
 
 # Parse connection details
 def parse_amqp_url(amqp_url):
@@ -572,3 +734,7 @@ pulumi.export("access_key_id", api_access_key.id)
 pulumi.export("secret_access_key", api_access_key.secret)
 pulumi.export("first_queue", first_queue)
 pulumi.export("second_queue", second_queue)
+# Export the instance's public IP address
+pulumi.export("instance_name", gcp_instance.name)
+pulumi.export("instance_zone", gcp_instance.zone)
+pulumi.export("instance_ip", gcp_instance.network_interfaces[0].access_configs[0].nat_ip)

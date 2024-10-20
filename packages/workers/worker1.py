@@ -16,7 +16,7 @@ load_dotenv()
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URI")
 QUEUE_NAME = os.getenv("FIRST_QUEUE", "default_queue")
-QUEUE_NAME_TWO = "LLM"
+QUEUE_NAME_TWO = os.getenv("SECOND_QUEUE", "default_queue")
 ORGANIZATION_ID = os.getenv("OPENAI_ORGANIZATION")
 PROJECT_ID = os.getenv("OPENAI_PROJECT")
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
@@ -54,6 +54,8 @@ if not RABBITMQ_URL:
 
 deepgram_api_key = os.getenv("DEEPGRAM_API_KEY")
 deepgram = DeepgramClient(deepgram_api_key)
+
+
 
 def redis_presentation_exists(pres_id):
     return re.hget(pres_id, 'thread_id') != None
@@ -139,6 +141,7 @@ def get_transcript(audio_url):
     audio_source = {"url": audio_url}    
     response = deepgram.listen.rest.v("1").transcribe_url(audio_source, options, timeout=300)
     transcript = response['results']['channels'][0]['alternatives'][0]['transcript']
+    print("transcript", transcript)
 
     return transcript
 
@@ -172,6 +175,8 @@ def get_emotions(audio_url):
     bad_avg = (result['Awkwardness']+result['Anxiety']+result['Confusion']+result['Doubt']+result['Embarrassment']+result['Fear']+result['Tiredness']) / 7.0
     good_avg = (result['Calmness'] + result['Concentration'] + result['Determination'] + result['Excitement'] + result['Interest'] + result['Joy']) / 6.0
 
+
+    print(f"Emotions: {emot_list[:3]}")
     return {'emotions': json.dumps([x['emotion'] for x in emot_list[:3]]), 'score': str(good_avg - bad_avg)}
 
 
@@ -184,9 +189,11 @@ def process_transcription_job(job_params):
     pres_id = job_params["presentationID"]
 
     if not redis_presentation_exists(pres_id):
+        print("thread being created")
         thread_id = create_thread(user_id, pres_id)
         redis_create_presentation(pres_id, thread_id)
-    
+        print("thread successful")
+    print("using existing thread")
     redis_add_gpt_job(
         pres_id, 
         user_id, 
@@ -198,6 +205,7 @@ def process_transcription_job(job_params):
         emot['emotions'],
         emot['score']
     )
+    print("finished adding to redis")
 
     return {'PRESENTATION_ID': pres_id, 'CLIP_ID': job_params["clipIndex"]}
 
@@ -208,17 +216,19 @@ def process_message(body):
     job_params = process_transcription_job(json.loads(message))
     # Pass presentation id, clip id to queue 2
     
+    print(f" [x] Worker1 sending to queue 2: {job_params}")
     params = pika.URLParameters(RABBITMQ_URL)
     connection = pika.BlockingConnection(params)
     channel = connection.channel()
     channel.queue_declare(queue=QUEUE_NAME_TWO, durable=True)
     channel.basic_publish(exchange='', routing_key=QUEUE_NAME_TWO, body=json.dumps(job_params),properties=pika.BasicProperties(delivery_mode=pika.DeliveryMode.Persistent))
+    print(f" [x] Worker1 finished queue 2: {job_params}")
     connection.close()
 
 def callback(ch, method, properties, body):
     try:
-        process_message(body)
         ch.basic_ack(delivery_tag=method.delivery_tag)
+        process_message(body)
     except Exception as e:
         print(f"Error processing message: {e}")
         # Optionally, send to a dead-letter queue or retry

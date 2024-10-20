@@ -5,6 +5,8 @@ import redis
 import pika
 from pymongo import MongoClient
 from openai import OpenAI
+from phoenix.otel import register
+from openinference.instrumentation.openai import OpenAIInstrumentor
 
 # Remove load_dotenv() since Docker provides environment variables directly
 # load_dotenv()
@@ -42,6 +44,13 @@ redis_client = redis.Redis(
     password=REDIS_PASSWORD,
     decode_responses=True
 )
+
+trace_provider = register(
+  project_name="default",
+  endpoint="https://app.phoenix.arize.com/v1/traces",
+)
+
+OpenAIInstrumentor().instrument(tracer_provider=trace_provider)
 
 mongo_client = MongoClient(MONGO_URI)
 database = mongo_client[MONGO_DB]
@@ -102,6 +111,7 @@ def get_clip_feedback(index, slide, transcript, assistant_id, thread_id):
   Send thread to assistant
   Return feedback
   '''
+  print("Starting")
   text_input = "Transcript " + str(index) + ": " + transcript + "\nNow evaluate this segment according the criteria, using the presentation description, audience description, and tone description given earlier. Format your response as bullet points under the relevant headers. Afterwards, list suggestions for improvements if there are any (be as specific as possible). Finally, give an overall score out of 10. Give your entire response in markdown format (but keep as bullet points under each main criteria, not subheaders)."
   content = [{"type":"text", "text": text_input}, {"type":"image_url", "image_url": {"url":slide}}]
   msg = OPENAI_CLIENT.beta.threads.messages.create(
@@ -125,32 +135,8 @@ def get_clip_feedback(index, slide, transcript, assistant_id, thread_id):
 
   return thread_messages.data[0].content[0].text.value
 
-def get_overall_critic(assistant_id, thread_id):
-    text_input = "Now evaluate the whole presentation on the following criteria:\n\t- Overall narrative flow\n\t- Were there enough images or graphics to break up monotony of text\n\t- How all the segments work together for goal of the overall presentation"
-    content = [{"type":"text", "text": text_input}]
-    msg = OPENAI_CLIENT.beta.threads.messages.create(
-        thread_id,
-        role="user",
-        content=content
-    )
-    thread_messages = OPENAI_CLIENT.beta.threads.messages.list(thread_id)
-    msg_sz = len(thread_messages.data)
-    run = OPENAI_CLIENT.beta.threads.runs.create(
-        thread_id=thread_id,
-        assistant_id=assistant_id
-    )
-
-    while run.status != "completed":
-        print(run.status)
-        time.sleep(1.5)
-        run = OPENAI_CLIENT.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-
-    thread_messages = OPENAI_CLIENT.beta.threads.messages.list(thread_id)
-
-    return thread_messages.data[0].content[0].text.value
-
 def get_final_summary(assistant_id, thread_id):
-    text_input = "Summarize all your previous feedback in one or two paragraphs. Include the most important suggestions for improvement."
+    text_input = "The presentation is over. Give a score out of 10 for the entire presentation. Keeping in mind the presentation description, audience description, and tone description, summarize all your feedback, emphasizing the most important suggestions for improvement and if the presentation was effective in achieving its goal. Keep in mind the visuals of slides, accuracy of content, if it concluded in a satisfying manner, the overall narrative flow and how all the segments fit together. Give your entire response in markdown format"
     content = [{"type":"text", "text": text_input}]
     msg = OPENAI_CLIENT.beta.threads.messages.create(
         thread_id,
@@ -189,11 +175,11 @@ def update_db(user_id, pres_id, clip_id, feedback):
         )
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {f'presentations.$.clips.{clip_id}.feedback.score': score}}
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback.emotionScore': score}}
         )
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {f'presentations.$.clips.{clip_id}.feedback.emotions': emotions}}
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback.emotion': emotions}}
         )
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
@@ -209,7 +195,7 @@ def update_db_done(user_id, pres_id):
     
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {'presentations.$.presentationStatus': 'completed'}}
+            {"$set": {'presentations.$.presentationStatus': 'complete'}}
         )
 
 def update_db_pending(user_id, pres_id):
@@ -242,10 +228,8 @@ def process_gpt_job(job_params):
     feedback = get_clip_feedback(clip_id, slide_url, transcript, ASSISTANT_ID, thread_id)
 
     if redis_get_final_status(pres_id, clip_id) != "false":
-        overall = get_overall_critic(ASSISTANT_ID, thread_id)
         summary = get_final_summary(ASSISTANT_ID, thread_id)
-        tot_sum = overall + "\n\n" + summary
-        update_db_summary(user_id, pres_id, tot_sum)
+        update_db_summary(user_id, pres_id, summary)
 
 
     update_db(user_id, pres_id, clip_id, feedback)
@@ -277,7 +261,6 @@ def setPendingDict(pres_id, pending_dict):
 def process_message(body):
     message = body.decode()
     print(f" [x] Worker2 received: {message}")
-    # TODO: Add your processing logic here
 
     job_params = json.loads(message)
     clip_id = job_params['CLIP_ID']
@@ -311,6 +294,7 @@ def callback(ch, method, properties, body):
     try:
         process_message(body)
         ch.basic_ack(delivery_tag=method.delivery_tag)
+
     except Exception as e:
         print(f"Error processing message: {e}")
         # Optionally, send to a dead-letter queue or retry
