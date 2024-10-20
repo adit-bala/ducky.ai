@@ -84,13 +84,9 @@ def create_thread(user_id, pres_id):
     preset = result['presentations'][0].get('preset', {})
     
     # Validate preset fields
-    presentation_description = preset.get('presentationDescription')
-    audience_description = preset.get('audienceDescription')
-    tone_description = preset.get('toneDescription')
-
-    if not all([presentation_description, audience_description, tone_description]):
-        print("Incomplete preset data. Please ensure all preset fields are provided.")
-        return None  # Or handle as appropriate
+    presentation_description = preset.get('presentationDescription') or "None"
+    audience_description = preset.get('audienceDescription') or "None"
+    tone_description = preset.get('toneDescription') or "None"
 
     # Construct the initial message
     initial_message = (
