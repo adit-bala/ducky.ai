@@ -1,5 +1,4 @@
 import type { UUID } from "mongo/mod.ts";
-import { ObjectId } from "../deps.ts";
 
 interface Feedback {
   emotion: string[];

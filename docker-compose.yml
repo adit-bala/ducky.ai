@@ -1,0 +1,110 @@
+services:
+
+  api:
+    build:
+      context: ./packages/api
+      dockerfile: Dockerfile
+    ports:
+      - 3001:3001
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - MONGO_DB=${MONGO_DB}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+    networks:
+      - app-network
+
+  mongodb:
+    image: mongo:4.4
+    ports:
+      - 27018:27017
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongo localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6.0-alpine
+    ports:
+      - 6379:6379
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker1:
+    build:
+      context: ./packages/workers
+      dockerfile: Dockerfile
+    command: ["python", "worker1.py"]
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - RABBITMQ_URI=${RABBITMQ_URI}
+      - FIRST_QUEUE=${FIRST_QUEUE}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_ORGANIZATION=${OPENAI_ORGANIZATION}
+      - OPENAI_PROJECT=${OPENAI_PROJECT}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+    networks:
+      - app-network
+
+  worker2:
+    build:
+      context: ./packages/workers
+      dockerfile: Dockerfile
+    command: ["python", "worker2.py"]
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - MONGO_DB=${MONGO_DB}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - RABBITMQ_URI=${RABBITMQ_URI}
+      - SECOND_QUEUE=${SECOND_QUEUE}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_ORGANIZATION=${OPENAI_ORGANIZATION}
+      - OPENAI_PROJECT=${OPENAI_PROJECT}
+      - ASSISTANT_ID=${ASSISTANT_ID}
+    networks:
+      - app-network
+
+networks:
+  app-network:
+
+volumes:
+  mongodb_data:
+  redis_data:

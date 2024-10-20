@@ -28,15 +28,16 @@ const kv = await Deno.openKv();
 
 // Connect to MongoDB
 const client = new MongoClient();
+console.log(Deno.env.get("MONGO_URI"));
 await client.connect(Deno.env.get("MONGO_URI")!);
 const db = client.database(Deno.env.get("MONGO_DB")!);
 
 // Get the collections
 const users = db.collection("users");
-
+console.log(Deno.env.get("GOOGLE_REDIRECT_URI"));
 // Configure Google OAuth
 const oauthConfig = createGoogleOAuthConfig({
-  redirectUri: "http://localhost:8080/oauth/callback",
+  redirectUri: Deno.env.get("GOOGLE_REDIRECT_URI")!,
   scope: [
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
@@ -56,7 +57,9 @@ const s3 = new S3Client({
 });
 
 // Create the router
-const authRouter = new Router();
+const authRouter = new Router({
+  prefix: "/api",
+});
 
 authRouter.get("/", async (ctx: Context) => {
   try {
@@ -183,7 +186,10 @@ export const authMiddleware: Middleware = async (ctx: Context, next) => {
   }
 };
 
-const router = new Router();
+const router = new Router({
+  prefix: "/api",
+});
+
 router.use(authMiddleware);
 
 router.post("/presentations", async (ctx: Context) => {
@@ -306,7 +312,7 @@ const pollS3Status = async (
   presentationId: string,
   userId: string,
   presentationPrefix: string,
-  maxAttempts = 10,
+  maxAttempts = 30,
   interval = 5
 ) => {
   const bucketName = Deno.env.get("S3_BUCKET_NAME")!;
@@ -387,6 +393,7 @@ const getImages = async (
     for (const obj of response.Contents) {
       if (obj.Key && obj.Key.endsWith(".png")) {
         imageKeys.push(Deno.env.get("S3_BUCKET_WEBSITE_ENDPOINT")! + obj.Key);
+        console.log("imageKey", obj.Key);
       }
     }
   }
@@ -567,7 +574,7 @@ router.get("/presentations/:uuid", async (ctx: Context) => {
   }
 });
 
-authRouter.post("/presentations/:presentationUUID/clip", async (ctx: Context) => {
+router.post("/presentations/:presentationUUID/clip", async (ctx: Context) => {
   try {
     const { presentationUUID } = ctx.params;
     if (!presentationUUID) {
@@ -577,7 +584,7 @@ authRouter.post("/presentations/:presentationUUID/clip", async (ctx: Context) =>
     }
 
     // Find the user
-    const userId = "117330744480793891038";
+    const userId = ctx.state.user.googleId;
     if (!userId) {
       ctx.response.status = 404;
       ctx.response.body = { error: "User not found." };
@@ -612,7 +619,14 @@ authRouter.post("/presentations/:presentationUUID/clip", async (ctx: Context) =>
     const audioFile = form.get("audioFile"); // .webm
     const isEndString = form.get("isEnd"); // string
 
-    console.log("slideIndex, clipIndex, clipTimestamp, videoFile, audioFile", slideIndex, clipIndex, clipTimestamp, videoFile, audioFile);
+    console.log(
+      "slideIndex, clipIndex, clipTimestamp, videoFile, audioFile",
+      slideIndex,
+      clipIndex,
+      clipTimestamp,
+      videoFile,
+      audioFile
+    );
 
     if (
       typeof slideIndex !== "string" ||
@@ -632,12 +646,16 @@ authRouter.post("/presentations/:presentationUUID/clip", async (ctx: Context) =>
 
     const isEnd = isEndString === "true"; // convert to boolean
 
-    console.log(audioFile.type);
+    console.log("videoFile.type", videoFile.type);
+    console.log("audioFile.type", audioFile.type);
 
-    if (videoFile.type !== "video/mp4" || audioFile.type !== "video/webm") {
+    if (
+      !videoFile.type.includes("video/mp4") ||
+      !audioFile.type.includes("audio/webm")
+    ) {
       ctx.response.status = 400;
       ctx.response.body = {
-        error: "Uploaded files must be of type video/mp4 and video/webm.",
+        error: "Uploaded files must be of type video/mp4 and audio/webm.",
       };
       return;
     }
@@ -647,6 +665,12 @@ authRouter.post("/presentations/:presentationUUID/clip", async (ctx: Context) =>
 
     const audioArrayBuffer = await audioFile.arrayBuffer();
     const audioContent = new Uint8Array(audioArrayBuffer);
+
+    console.log(
+      "videoContent.length, audioContent.length",
+      videoContent.length,
+      audioContent.length
+    );
 
     const clipPrefix = `Users/${userId}/presentations/${presentationUUID}/clips/${clipIndex}_${clipTimestamp}_${isEnd}/${slideIndex}/`;
     const videoKey = `${clipPrefix}video.mp4`;
@@ -701,12 +725,11 @@ authRouter.post("/presentations/:presentationUUID/clip", async (ctx: Context) =>
   }
 });
 
-
 // Initialize and start the application
 const app = new Application();
 app.use(
   oakCors({
-    origin: /^.+localhost:(8080|5173)$/,
+    origin: /^.+localhost:(8080|5173|3001)$/,
     credentials: true,
   })
 );
@@ -715,6 +738,6 @@ app.use(authRouter.allowedMethods());
 app.use(router.routes());
 app.use(router.allowedMethods());
 
-const port = 8080;
-console.log(`Listening on http://localhost:${port}/`);
-await app.listen({ port });
+await app.listen({ port: 3001 });
+
+console.log("Server running on http://localhost:3001");

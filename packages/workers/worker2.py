@@ -1,13 +1,13 @@
-import pika
 import os
 import json
-from dotenv import load_dotenv
 import time
 import redis
-from hume import HumeClient
+import pika
+from pymongo import MongoClient
 from openai import OpenAI
 
-load_dotenv()
+# Remove load_dotenv() since Docker provides environment variables directly
+# load_dotenv()
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URI")
 QUEUE_NAME = os.getenv("SECOND_QUEUE", "default_queue")
@@ -16,10 +16,12 @@ OPEN_API_KEY = os.getenv("OPEN_API_KEY")
 ORGANIZATION_ID = os.getenv("OPENAI_ORGANIZATION")
 PROJECT_ID = os.getenv("OPENAI_PROJECT")
 ASSISTANT_ID = os.getenv("ASSISTANT_ID")
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+
+# Provide default values
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
-OPEN_API_KEY= os.getenv("OPEN_API_KEY")
+
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB")
 
@@ -27,31 +29,49 @@ if not RABBITMQ_URL:
     print("RABBITMQ_URL is not defined in the environment variables.")
     exit(1)
 
+# Initialize clients
 OPENAI_CLIENT = OpenAI(
-  api_key=OPEN_API_KEY,
-  organization=ORGANIZATION_ID,
-  project=PROJECT_ID,
+    api_key=OPEN_API_KEY,
+    organization=ORGANIZATION_ID,
+    project=PROJECT_ID,
 )
 
-re = redis.Redis(
+redis_client = redis.Redis(
     host=REDIS_HOST,
     port=REDIS_PORT,
     password=REDIS_PASSWORD,
     decode_responses=True
 )
 
-ASSISTANT_ID=os.getenv('ASSISTANT_ID')
+mongo_client = MongoClient(MONGO_URI)
+database = mongo_client[MONGO_DB]
+
+# Add debug statements
+print(f"REDIS_HOST: {REDIS_HOST}")
+print(f"REDIS_PORT: {REDIS_PORT}")
+print(f"REDIS_PASSWORD: {'***' if REDIS_PASSWORD else 'None'}")
+
+# Test Redis connection
+try:
+    redis_client.ping()  # Check if the connection works
+    print("Redis connection successful.")
+except redis.AuthenticationError:
+    print("Redis authentication failed. Check your password.")
+except Exception as e:
+    print(f"REDIS connection error: {e}")
+
+# Rest of your code...
 
 def redis_get_next(pres_id):
-    return int(re.hget(pres_id, 'next'))
+    return int(redis_client.hget(pres_id, 'next'))
 
 def redis_add_pending_clip(pres_id, clip_id):
-    pending = json.loads(re.hget(pres_id, 'pending'))
+    pending = json.loads(redis_client.hget(pres_id, 'pending'))
     pending[clip_id] = 1
-    re.hset(pres_id, 'pending', json.dumps(pending))
+    redis_client.hset(pres_id, 'pending', json.dumps(pending))
 
 def redis_get_job_data(pres_id, clip_id):
-    return json.loads(re.hget(pres_id, clip_id))
+    return json.loads(redis_client.hget(pres_id, clip_id))
 
 def redis_get_slideurl(pres_id, clip_id): 
     d = redis_get_job_data(pres_id, clip_id)
@@ -62,7 +82,7 @@ def redis_get_transcript(pres_id, clip_id):
     return d['TRANSCRIPT']
 
 def redis_get_threadid(pres_id):
-    return re.hget(pres_id, 'thread_id')
+    return redis_client.hget(pres_id, 'thread_id')
 
 def redis_get_final_status(pres_id, clip_id):
     d = redis_get_job_data(pres_id, clip_id)
@@ -150,6 +170,44 @@ def get_final_summary(assistant_id, thread_id):
 
     return thread_messages.data[0].content[0].text.value
 
+def update_db(user_id, pres_id, clip_id, feedback):
+    print(feedback)
+
+    collection = database["users"]
+    print("COLLECTION", collection)
+    print("user_id", user_id, "pres_id", pres_id, "clip_id", clip_id, "feedback", feedback)
+    for doc in collection.find():
+        print(doc)
+
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback': feedback}}
+        )
+def update_db_done(user_id, pres_id):
+    collection = database["users"]
+    file_path = f"feedback_{user_id}_{pres_id}.json"
+    
+    # Read existing data if file exists
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+    else:
+        data = {}
+    
+    # Update presentation status
+    if pres_id not in data:
+        data[pres_id] = {}
+    data[pres_id]['presentationStatus'] = 'completed'
+    
+    # Write updated data back to file
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=2)
+    
+    print(f"Presentation status updated in {file_path}")
+    collection.update_one(
+            {'googleId': user_id, 'presentations._id': pres_id},
+            {"$set": {'presentations.$.presentationStatus': 'completed'}}
+        )
 
 def process_gpt_job(job_params):
     clip_id = job_params['CLIP_ID']
@@ -163,14 +221,12 @@ def process_gpt_job(job_params):
         overall = get_overall_critic(ASSISTANT_ID, thread_id)
         summary = get_final_summary(ASSISTANT_ID, thread_id)
         tot_sum = overall + "\n\n" + summary
-        #update_db(redis_get_userid(pres_id, clip_id), pres_id, int(clip_id) + 1, tot_sum)
+        update_db(redis_get_userid(pres_id, clip_id), pres_id, int(clip_id) + 1, tot_sum)
 
-    print(clip_id)
-    print(feedback)
 
-    #update_db(redis_get_userid(pres_id, clip_id), pres_id, clip_id, feedback)
-    #if redis_get_final_status(pres_id, clip_id) != "false":
-    #    update_db_done(redis_get_userid(pres_id, clip_id), pres_id)
+    update_db(redis_get_userid(pres_id, clip_id), pres_id, clip_id, feedback)
+    if redis_get_final_status(pres_id, clip_id) != "false":
+       update_db_done(redis_get_userid(pres_id, clip_id), pres_id)
 
     return feedback
 
@@ -186,27 +242,29 @@ def addPendingClip(pres_id, clip_id):
     setPendingDict(pres_id, pending_dict)
 
 def getPendingDict(pres_id):
-    res = re.hget(pres_id, 'pending')
+    res = redis_client.hget(pres_id, 'pending')
     if res == None:
         return {}
     return json.loads(res)
 
 def setPendingDict(pres_id, pending_dict):
-    re.hset(pres_id, 'pending', json.dumps(pending_dict))
+    redis_client.hset(pres_id, 'pending', json.dumps(pending_dict))
 
 def process_message(body):
     message = body.decode()
-    print(f" [x] Worker1 received: {message}")
+    print(f" [x] Worker2 received: {message}")
     # TODO: Add your processing logic here
 
     job_params = json.loads(message)
     clip_id = job_params['CLIP_ID']
     pres_id = job_params['PRESENTATION_ID']
-
-    if clip_id == re.hget(pres_id, 'next'):
+    print(redis_client)
+    
+    if clip_id == redis_client.hget(pres_id, 'next'):
         #Process job and then all jobs in pending we can now do, if there are any
         process_gpt_job(job_params)
         nextClip = int(clip_id) + 1
+        print(f" [x] Worker2 finsihed GPT: {message}")
 
         while str(nextClip) in getPendingDict(pres_id):
             #process(database[presID][nextClip])
@@ -217,11 +275,12 @@ def process_message(body):
             nextClip += 1
         
         #database[presID][”waitingFor”] = nextClip
-        re.hset(pres_id, 'next', str(nextClip))
+        redis_client.hset(pres_id, 'next', str(nextClip))
 
     else:
         # Add job to pending database
         #database[job.presNumber][job.clipNumber] = job
+        print(f" [x] Worker2 received: {message}")
         addPendingClip(pres_id, clip_id)
 
 def callback(ch, method, properties, body):
@@ -254,5 +313,5 @@ def start_worker():
             print(f"Unexpected error: {e}. Retrying in 5 seconds...")
             time.sleep(5)
 
-if __name__ == "__main__":
-    start_worker()
+
+start_worker()

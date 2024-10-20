@@ -1,0 +1,7 @@
+pika
+python-dotenv
+redis
+hume
+openai
+pymongo
+deepgram-sdk

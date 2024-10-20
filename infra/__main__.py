@@ -257,7 +257,7 @@ def handler(event, context):
                     if image_file.startswith('slide-') and image_file.endswith('.png'):
                         image_path = os.path.join(tmpdir, image_file)
                         # Extract the slide number
-                        slide_num = image_file.split('-')[-1].split('.')[0]
+                        slide_num = str(int(image_file.split('-')[-1].split('.')[0]) - 1)
                         # Define the destination key
                         image_key = f"Users/{user_id}/presentations/{presentation_id}/slides/slide_{slide_num}.png"
                         # Upload the image

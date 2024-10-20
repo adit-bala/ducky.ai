@@ -4,8 +4,9 @@ import json
 from dotenv import load_dotenv
 import time
 import redis
-from hume import HumeClient
 from openai import OpenAI
+from deepgram import DeepgramClient, PrerecordedOptions
+import asyncio
 
 
 
@@ -20,7 +21,7 @@ REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
 OPEN_API_KEY= os.getenv("OPEN_API_KEY")
-HUME_API_KEY = os.getenv('HUME_API_KEY')
+DEEPGRAM_API_KEY= os.getenv("DEEPGRAM_API_KEY")
 
 OPENAI_CLIENT = OpenAI(
   api_key=OPEN_API_KEY,
@@ -34,10 +35,12 @@ re = redis.Redis(
     password=REDIS_PASSWORD,
     decode_responses=True
 )
-
 if not RABBITMQ_URL:
     print("RABBITMQ_URL is not defined in the environment variables.")
     exit(1)
+
+deepgram_api_key = os.getenv("DEEPGRAM_API_KEY")
+deepgram = DeepgramClient(deepgram_api_key)
 
 def redis_presentation_exists(pres_id):
     return re.hget(pres_id, 'thread_id') != None
@@ -62,39 +65,21 @@ def create_thread():
     thread = OPENAI_CLIENT.beta.threads.create()
     return thread.id
 
-def get_transcript(video_url):
-    hclient = HumeClient(
-        api_key=HUME_API_KEY,
+def get_transcript(audio_url):
+
+    # Define the transcription options
+    options: PrerecordedOptions = PrerecordedOptions(
+        model="nova-2",
+        smart_format=True,
     )
 
-    video_job = hclient.expression_measurement.batch.start_inference_job(
-        urls=[video_url],
-        notify=True,
-    )
+    audio_source = {"url": audio_url}    
+    response = deepgram.listen.rest.v("1").transcribe_url(audio_source, options, timeout=300)
+    transcript = response['results']['channels'][0]['alternatives'][0]['transcript']
 
-    while hclient.expression_measurement.batch.get_job_details(id=video_job).state.status != "COMPLETED":
-        time.sleep(1.5)
-        print(hclient.expression_measurement.batch.get_job_details(id=video_job).state.status)
+    return transcript
 
-    video_resp = hclient.expression_measurement.batch.get_job_predictions(
-        id=video_job,
-    )
-
-    result = {'Transcript':'', 'Emotions':{}}
-    try:
-        for i in range(len(video_resp[0].results.predictions[0].models.language.grouped_predictions[0].predictions)):
-            result['Transcript'] +=  video_resp[0].results.predictions[0].models.language.grouped_predictions[0].predictions[i].text + " "
-        result['Transcript'] = result['Transcript'].strip()
-    except Exception as e:
-        print("Hume transcription failed, returning empty transcript.")
-
-    '''for i in range(len(video_resp[0].results.predictions[0].models.prosody.grouped_predictions[0].predictions[0].emotions)):
-        emot = video_resp[0].results.predictions[0].models.prosody.grouped_predictions[0].predictions[0].emotions[i]
-        result['Emotions'][emot.name] = emot.score'''
-    return result
-
-def process_hume_job(job_params):
-
+def process_transcription_job(job_params):
     result = get_transcript(job_params['audioURL'])
 
     user_id = job_params["userID"]
@@ -104,24 +89,29 @@ def process_hume_job(job_params):
         thread_id = create_thread()
         redis_create_presentation(pres_id, thread_id)
     
-    redis_add_gpt_job(pres_id, job_params["userID"], job_params["clipIndex"], result['Transcript'], job_params['slideURL'], job_params['isEnd'])
+    redis_add_gpt_job(
+        pres_id, 
+        user_id, 
+        job_params["clipIndex"], 
+        result, 
+        job_params['slideURL'], 
+        job_params['isEnd']
+    )
 
-    return {'PRESENTATION_ID':pres_id, 'CLIP_ID': job_params["clipIndex"]}
+    return {'PRESENTATION_ID': pres_id, 'CLIP_ID': job_params["clipIndex"]}
 
 def process_message(body):
     message = body.decode()
     print(f" [x] Worker1 received: {message}")
     # TODO: Add your processing logic here
-    job_params = process_hume_job(json.loads(message))
+    job_params = process_transcription_job(json.loads(message))
     # Pass presentation id, clip id to queue 2
     
     params = pika.URLParameters(RABBITMQ_URL)
     connection = pika.BlockingConnection(params)
     channel = connection.channel()
     channel.queue_declare(queue=QUEUE_NAME_TWO, durable=True)
-    
     channel.basic_publish(exchange='', routing_key=QUEUE_NAME_TWO, body=json.dumps(job_params),properties=pika.BasicProperties(delivery_mode=pika.DeliveryMode.Persistent))
-    
     connection.close()
 
 def callback(ch, method, properties, body):
@@ -154,5 +144,4 @@ def start_worker():
             print(f"Unexpected error: {e}. Retrying in 5 seconds...")
             time.sleep(5)
 
-if __name__ == "__main__":
-    start_worker()
+start_worker()
