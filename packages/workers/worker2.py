@@ -5,6 +5,8 @@ import redis
 import pika
 from pymongo import MongoClient
 from openai import OpenAI
+from phoenix.otel import register
+from openinference.instrumentation.openai import OpenAIInstrumentor
 
 # Remove load_dotenv() since Docker provides environment variables directly
 # load_dotenv()
@@ -42,6 +44,13 @@ redis_client = redis.Redis(
     password=REDIS_PASSWORD,
     decode_responses=True
 )
+
+trace_provider = register(
+  project_name="default",
+  endpoint="https://app.phoenix.arize.com/v1/traces",
+)
+
+OpenAIInstrumentor().instrument(tracer_provider=trace_provider)
 
 mongo_client = MongoClient(MONGO_URI)
 database = mongo_client[MONGO_DB]
