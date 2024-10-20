@@ -6,4 +6,4 @@ openai
 pymongo
 deepgram-sdk
 arize-phoenix
-openinference-instrumentation-openai openai
+openinference-instrumentation-openai

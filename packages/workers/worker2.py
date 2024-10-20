@@ -50,7 +50,7 @@ trace_provider = register(
   endpoint="https://app.phoenix.arize.com/v1/traces",
 )
 
-OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+OpenAIInstrumentor().instrument(tracer_provider=trace_provider)
 
 mongo_client = MongoClient(MONGO_URI)
 database = mongo_client[MONGO_DB]

@@ -147,6 +147,7 @@ authRouter.get("/oauth/callback", async (ctx: Context) => {
       path: "/",
     });
     await respondWithOak(ctx, response);
+    ctx.response.redirect("/presentations");
   } catch (error) {
     console.error("Error in /callback route:", error);
     ctx.response.status = 500;
