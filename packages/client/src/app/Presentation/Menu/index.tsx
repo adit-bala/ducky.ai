@@ -166,7 +166,9 @@ export default function Menu({
           <Button
             variant="outline"
             color="gray"
-            disabled={index === 0}
+            disabled={
+              index === 0 || presentation.presentationStatus === "processing"
+            }
             onClick={() => updateIndex(index + 1)}
           >
             <TrackPreviousIcon />
@@ -175,7 +177,10 @@ export default function Menu({
           <Button
             variant="outline"
             color="gray"
-            disabled={index === presentation.slides!.length - 1}
+            disabled={
+              index === presentation.slides!.length - 1 ||
+              presentation.presentationStatus === "processing"
+            }
             onClick={() => updateIndex(index + 1)}
           >
             Next slide
@@ -217,7 +222,10 @@ export default function Menu({
           variant="surface"
           color="gray"
           onClick={() => updateExpanded(!expanded)}
-          disabled={!presentation.slides}
+          disabled={
+            !presentation.slides ||
+            presentation.presentationStatus === "processing"
+          }
         >
           <LayersIcon />
         </IconButton>
