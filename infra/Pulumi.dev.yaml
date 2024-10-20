@@ -2,3 +2,48 @@ config:
   aws:region: us-east-1
   cloudamqp:apikey:
     secure: AAABAPLpXHnMHjyYVZ+u5VMI6mMfG/u0Lv965HUWmHUu8Ub3ik4Rhs6LLr8r9eXFwPamo3Ey4ePHuUtHHKnre5ivCHQ=
+  gcp:credentials: ../../../../../Downloads/stone-index-439213-e1-d905197199b5.json
+  gcp:project: stone-index-439213-e1
+  infra:API_PORT: "3001"
+  infra:MONGO_URI: mongodb://mongodb:27017/calhacks
+  infra:MONGO_DB: calhacks
+  infra:MONGO_PORT: "27017"
+  infra:AWS_REGION: us-east-1
+  infra:AWS_ACCESS_KEY_ID:
+    secure: AAABAAYHf0x6fJ0PgDGLU/038iH2FwZDeVodVpaJ8Y2GirLqnYmYrPZ6omY9iwL+aa2Dpw==
+  infra:AWS_SECRET_ACCESS_KEY:
+    secure: AAABAMadVHzVGfrjuT52v1WdRMzM4zvDB3vxBJ9N9bEWWebU5o1Cv5DJRRlMj4ZRGH0/uNXsvycB+5oMmSDhn7PcNDYKSPaA
+  infra:S3_BUCKET_NAME: directory-719ffe9
+  infra:S3_BUCKET_WEBSITE_ENDPOINT: http://directory-719ffe9.s3-website-us-east-1.amazonaws.com/
+  infra:GOOGLE_CLIENT_ID: 241978761825-856m7cgcimnotr7fgaj7ihteup7cpra8.apps.googleusercontent.com
+  infra:GOOGLE_CLIENT_SECRET:
+    secure: AAABANCmiJYs+EduYk9wvVlcfpDreS38/ptwNlXB7/KRU15Ib9flytrS3tyqhjOsgki8vhSg7zVibWeJeNftyWA1ug==
+  infra:GOOGLE_REDIRECT_URI: http://localhost:8080/api/oauth/callback
+  infra:CLOUDAMQP_API_KEY:
+    secure: AAABAJdW8xLmnbLw3PafVWKRfELDrYMcz4HTyRFDuu6V/CM+5Azil7AWHXBScrOGp09Q66Kn5dd+4Xw9tqanE7uvIwM=
+  infra:ENV: DEV
+  infra:RABBITMQ_URI:
+    secure: AAABAKy87sgva8MAbIasdlHwZWnHQ8W2usdVNweN13ctQgsaeenlxP6+I6DKdAjStZqIWhvc2nH+B5VROHnwRNZhYuJCU89ZhBYMJLplgn9LeS95ZtUPAVERft0vd0aLHzpINoDh+tJrJYbwueRo4B0=
+  infra:FIRST_QUEUE: TRANSCRIPTION
+  infra:SECOND_QUEUE: GPT
+  infra:REDIS_HOST: redis
+  infra:REDIS_PORT: "6379"
+  infra:REDIS_PASSWORD:
+    secure: AAABAJ4FJcPhQWNCYfFG2Vas5BTJh/Pu0vbSlrCeRLKDa2fuVbS5KsJpUnvpgXEZCEecLZBgkRRn5i5InDiwXd3z+sQF4PfIGX7iAw==
+  infra:OPENAI_API_KEY:
+    secure: AAABAHI8M/7elBBVtKNrwQVcU9EF/1gwN13qeNAd8mmOCYyiU/gMo8obsTyKXk/UZ/A38VhU+ziM+ys11urqEOXaQYWsdlIF2cfKU2V382T2IYK4EcJIaon0T5a8gHEne/BU9QLhrGHJBh122pgmLNFjdTRIySTs/JtPdZAALvLL5K3emXC98llGyoWs9T6de8/kFtF1MVa+9G4a2VzyKvn9HkI+WhoKbEnnfjkB1bn24qWbCydxRgBj8jElbzenmPAbdA==
+  infra:OPENAI_ORGANIZATION: org-Mulm1FGJK5YULbqmdQRisnpE
+  infra:OPENAI_PROJECT: proj_ooVhM7bcJQRucnJ6dJMSJxBU
+  infra:ASSISTANT_ID: asst_okx3erMuKvZ5ccYlMgidyLes
+  infra:CLIENT_PORT: "3000"
+  infra:DEEPGRAM_API_KEY:
+    secure: AAABALUfhq8+OIdmPSA1owhxx76Uw4eYzpVO8wkzFqUh0l7Kjy2ZFsDvLZDFqdWHcH+6iS9+QaLecom/wHYDs4OuMXaSaV5N
+  infra:HUME_API_KEY:
+    secure: AAABAKo5tAn6SDI1PnGiFAxs1F7GTAziswqxQeayRcqrM/fRV6NNik5CXMx/3+kJmLOA5OHTJL4EeiXLz6ThBuzvIVhLU65iTq7KEX4D9BQ=
+  infra:ARIZE_API_KEY:
+    secure: AAABAOcdtn21V+QZDd3PSN7vnMW5H9NGjRH+DNGSy6MyTvdqCFXPkSD+EKvFA0MBhF0y
+  infra:OTEL_EXPORTER_OTLP_HEADERS:
+    secure: AAABALHQGwOhpEEcpbF8BYgA4RoiGmKyEhKbWjpHNKLzXWWBX9jMUAtBCwuTokt7na/pfhOMN9O5//k6CWoX9IYDLg==
+  infra:PHOENIX_CLIENT_HEADERS:
+    secure: AAABAMZKm7itTEREfRyNotg8r/szVfC/PpS+EXCjL9lxz3y049ytyoAT/OkwM5ajHRRZjmc4Zz0NiClq9GoX3NKzHg==
+  infra:PHOENIX_COLLECTOR_ENDPOINT: https://app.phoenix.arize.com/

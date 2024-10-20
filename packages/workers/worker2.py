@@ -175,11 +175,11 @@ def update_db(user_id, pres_id, clip_id, feedback):
         )
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {f'presentations.$.clips.{clip_id}.feedback.score': score}}
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback.emotionScore': score}}
         )
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {f'presentations.$.clips.{clip_id}.feedback.emotions': emotions}}
+            {"$set": {f'presentations.$.clips.{clip_id}.feedback.emotion': emotions}}
         )
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
@@ -195,7 +195,7 @@ def update_db_done(user_id, pres_id):
     
     collection.update_one(
             {'googleId': user_id, 'presentations._id': pres_id},
-            {"$set": {'presentations.$.presentationStatus': 'completed'}}
+            {"$set": {'presentations.$.presentationStatus': 'complete'}}
         )
 
 def update_db_pending(user_id, pres_id):

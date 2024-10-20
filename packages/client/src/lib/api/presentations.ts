@@ -9,7 +9,7 @@ export interface IClip {
   video: string;
   feedback: {
     emotion: string[];
-    contentAccuracyScore: number;
+    emotionScore: number;
     text: string;
   };
 }
