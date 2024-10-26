@@ -3,7 +3,7 @@ import { ObjectId } from "../deps.ts";
 
 interface Feedback {
   emotion: string[];
-  confidenceScore: number;
+  emotionScore: number;
   text: string;
 }
 

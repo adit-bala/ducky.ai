@@ -47,6 +47,10 @@ arize_api_key = config.require_secret("ARIZE_API_KEY")
 otel_exporter_otlp_headers = config.require_secret("OTEL_EXPORTER_OTLP_HEADERS")
 phoenix_client_headers = config.require_secret("PHOENIX_CLIENT_HEADERS")
 
+with open('.env', 'r') as f:
+    env_content = f.read()
+
+
 # =========================
 # 0. Google Cloud VM
 # =========================
@@ -89,69 +93,70 @@ PHOENIX_COLLECTOR_ENDPOINT={phoenix_collector_endpoint}
 # Define the startup script with environment variables
 # Define the startup script with environment variables
 startup_script = f"""#!/bin/bash
-set -e
-export DEBIAN_FRONTEND=noninteractive
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
 
-# Log output to a file for troubleshooting
-exec > >(tee -i /var/log/startup-script.log)
-exec 2>&1
+    # Log output to a file for troubleshooting
+    exec > >(tee -i /var/log/startup-script.log)
+    exec 2>&1
 
-# Update the package index
-sudo apt-get update -y
+    # Update the package index
+    sudo apt-get update -y
 
-# Install required packages
-sudo apt-get install -y \\
-    git \\
-    apt-transport-https \\
-    ca-certificates \\
-    curl \\
-    gnupg \\
-    lsb-release \\
-    software-properties-common
+    # Install required packages
+    sudo apt-get install -y \\
+        git \\
+        apt-transport-https \\
+        ca-certificates \\
+        curl \\
+        gnupg \\
+        lsb-release \\
+        software-properties-common
 
-# Add Docker's official GPG key
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    # Add Docker's official GPG key
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-# Set up the Docker repository
-echo \\
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \\
-  https://download.docker.com/linux/debian \\
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    # Set up the Docker repository
+    echo \\
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \\
+    https://download.docker.com/linux/debian \\
+    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Update the package index again
-sudo apt-get update -y
+    # Update the package index again
+    sudo apt-get update -y
 
-# Install Docker Engine and Docker Compose plugin
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    # Install Docker Engine and Docker Compose plugin
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# Verify installations
-docker --version
-docker compose version
+    # Verify installations
+    docker --version
+    docker compose version
 
-# Add current user to the docker group
-sudo usermod -aG docker $(whoami)
+    # Add current user to the docker group
+    sudo usermod -aG docker $(whoami)
 
-# Clone the GitHub repository
-git clone https://github.com/adit-bala/ducky.ai.git /home/debian/ducky.ai
+    # Clone the GitHub repository
+    git clone https://github.com/adit-bala/ducky.ai.git /home/debian/ducky.ai
 
-# Navigate to the repository directory
-cd /home/debian/ducky.ai
+    # Navigate to the repository directory
+    cd /home/debian/ducky.ai
 
-# Create the .env file with environment variables
-cat <<EOF > .env
-{env_content}
-EOF
+    # Create the .env file with environment variables
+    cat <<EOF > .env
+    {env_content}
+    EOF
 
-# Secure the .env file
-chmod 600 .env
+    # Secure the .env file
+    chmod 600 .env
 
-# Build and run Docker containers
-docker compose up --build -d
+    # Build and run Docker containers
+    docker compose up --build -d
 
-# Enable Docker to start on boot
-sudo systemctl enable docker
-"""
+    # Enable Docker to start on boot
+    sudo systemctl enable docker
+    """
+
 
 # Define the VM instance with the updated startup script
 gcp_instance = gcp.compute.Instance("gcpinstance",

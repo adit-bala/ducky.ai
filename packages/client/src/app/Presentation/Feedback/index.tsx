@@ -29,17 +29,18 @@ export default function Feedback({ presentation, index }: FeedbackProps) {
       </Container>
       <Container size="2">
         <Flex direction="column" gap="5">
-          {typeof clip.feedback.emotion !== "string" && (
+          {(typeof clip.feedback.emotion === "string" ||
+            clip.feedback.emotion === null) && (
             <Flex gap="2">
-              {clip.feedback.emotion.map((emotion) => (
+              {JSON.parse(clip.feedback.emotion).map((emotion: string) => (
                 <Badge>{emotion}</Badge>
               ))}
             </Flex>
           )}
-          {typeof clip.feedback.emotionScore !== "string" && (
+          {typeof clip.feedback.emotionScore === "string" && (
             <Flex gap="3" align="center">
               <div className={styles.score}>
-                {(clip.feedback.emotionScore + 1) * 50}
+                {clip.feedback.emotionScore}
               </div>
               <Text size="2">Confidence score</Text>
             </Flex>
