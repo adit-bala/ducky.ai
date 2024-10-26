@@ -177,7 +177,7 @@ def get_emotions(audio_url):
 
 
     print(f"Emotions: {emot_list[:3]}")
-    return {'emotions': json.dumps([x['emotion'] for x in emot_list[:3]]), 'score': str(good_avg - bad_avg)}
+    return {'emotions': json.dumps([x['emotion'] for x in emot_list[:3]]), 'score': str(50*(good_avg - bad_avg + 1))}
 
 
 
